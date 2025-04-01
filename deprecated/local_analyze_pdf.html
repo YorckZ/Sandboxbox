@@ -1,0 +1,19 @@
+{% extends 'index.html' %}
+
+{% block content %}
+
+<!-- <!DOCTYPE html> -->
+<html>
+<head>
+    <title>PDF Analyzer</title>
+    <script src="/deprecated/analyze_pdf.js"></script>
+</head>
+<body>
+    <h1>Local Llama PDF Analyzer</h1>
+    <input type="file" id="fileInput" accept="application/pdf">
+    <button onclick="analyzePDF()">Upload and Analyze</button>
+    <p id="summaryLabel"></p>
+</body>
+</html>
+
+{% endblock %}

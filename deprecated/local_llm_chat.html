@@ -1,0 +1,18 @@
+{% extends 'index.html' %}
+
+{% block content %}
+
+<!--<!DOCTYPE html>-->
+<html>
+<head>
+    <title>Local Llama Chat</title>
+    <script src="/deprecated/local_llm_chat.js"></script>
+</head>
+<body>
+    <h1>Local Llama Chat</h1>
+    <textarea id="questionInput" rows="10" cols="50" placeholder="Type your question here..."></textarea><br>
+    <button onclick="sendQuestion()">Send</button>
+</body>
+</html>
+
+{% endblock %}

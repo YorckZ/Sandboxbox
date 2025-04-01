@@ -1,0 +1,71 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Neue Frage hinzufügen</h2>
+    <form id="frageForm">
+        <div class="mb-3">
+            <label for="bez" class="form-label">Kurzbezeichnung:</label>
+            <input type="text" class="form-control" id="bez" name="bez" required>
+        </div>
+        <div class="mb-3">
+            <label for="text" class="form-label">Fragetext:</label>
+            <textarea class="form-control" id="text" name="text" required></textarea>
+        </div>
+        <div class="mb-3">
+            <label for="bem" class="form-label">Bemerkung:</label>
+            <textarea class="form-control" id="bem" name="bem"></textarea>
+        </div>
+        <div class="mb-3">
+            <label for="ja" class="form-label">Ja (nächstes Element ID):</label>
+            <input type="number" class="form-control" id="ja" name="ja">
+        </div>
+        <div class="mb-3">
+            <label for="nein" class="form-label">Nein (nächstes Element ID):</label>
+            <input type="number" class="form-control" id="nein" name="nein">
+        </div>
+        <div class="mb-3">
+            <label for="unsicher" class="form-label">Unsicher (nächstes Element ID):</label>
+            <input type="number" class="form-control" id="unsicher" name="unsicher">
+        </div>
+        <div class="mb-3">
+            <label for="initial" class="form-label">Ist dies die Startfrage?</label>
+            <select class="form-control" id="initial" name="initial">
+                <option value="0">Nein</option>
+                <option value="1">Ja</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Speichern</button>
+    </form>
+    <p id="statusMessage" class="mt-2"></p>
+</div>
+
+<script>
+    document.getElementById("frageForm").addEventListener("submit", function(event) {
+        event.preventDefault();
+        let formData = {
+            bez: document.getElementById("bez").value,
+            text: document.getElementById("text").value,
+            bem: document.getElementById("bem").value,
+            ja: document.getElementById("ja").value || null,
+            nein: document.getElementById("nein").value || null,
+            unsicher: document.getElementById("unsicher").value || null,
+            initial: document.getElementById("initial").value
+        };
+        
+        fetch("/save_frage", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById("statusMessage").textContent = data.message;
+            document.getElementById("frageForm").reset(); // Clear form after submission
+        })
+        .catch(error => console.error("Error:", error));
+    });
+</script>
+{% endblock %}

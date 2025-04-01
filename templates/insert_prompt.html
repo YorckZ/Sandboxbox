@@ -1,0 +1,36 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Insert Prompt</h2>
+    <form id="promptForm">
+        <div class="mb-3">
+            <label for="promptInput" class="form-label">Enter your prompt:</label>
+            <input type="text" class="form-control" id="promptInput" name="prompt" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Speichern</button>
+    </form>
+    <p id="statusMessage" class="mt-2"></p>
+</div>
+
+<script>
+    document.getElementById("promptForm").addEventListener("submit", function(event) {
+        event.preventDefault();
+        let promptText = document.getElementById("promptInput").value;
+        
+        fetch("/save_prompt", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ text: promptText })
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById("statusMessage").textContent = data.message;
+            document.getElementById("promptInput").value = ""; // Clear input field
+        })
+        .catch(error => console.error("Error:", error));
+    });
+</script>
+{% endblock %}

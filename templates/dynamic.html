@@ -1,0 +1,42 @@
+{% extends 'index.html' %}
+
+{% block content %}
+
+<!-- <!DOCTYPE html> -->
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <title>Self-Assessment Tool: A Guided Questionnaire</title>
+        <script src="/static/dynamic.js"></script>
+        <link rel="stylesheet" href="/static/style.css">
+    </head>
+
+    <body>
+
+        <form>
+        <h1>1. Fragen zur Anwendbarkeit der DS-GVO, zur Rolle des Unternehmens und zur Zuständigkeit des LfDI</h1>
+            <label for="dropdown11">1.1) Verarbeitet Ihr Unternehmen personenbezogene Daten i.S.d. Art. 4 Nr. 1, 2 DS-GVO?</label>
+            <select id="dropdown11" onchange="updateDropdown11()">
+                <option value="n.a.">n.a.</option>
+                <option value="ja">Ja</option>
+                <option value="nein">Nein</option>
+                <option value="unsicher">Ich bin mir unsicher.</option>
+                <option value="ZuAbsage">{Dev} Zusage- und Absagetext anzeigen.</option>
+            </select>
+            <div id="dynamicArea11" style="margin-top:20px;"></div>
+        </form>
+
+        <form>
+            <div id="ZusageArea" style="margin-top:20px;"></div>
+        </form>
+
+        <form>
+            <div id="AbsageArea" style="margin-top:20px;"></div>
+        </form>
+
+    </body>
+
+</html>
+
+{% endblock %}
