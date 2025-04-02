@@ -87,6 +87,11 @@ def save_frage():
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
 
 
+# @app.route('/edit_frage')
+# def edit_frage():
+#     return render_template('edit_frage.html')
+
+
 def open_browser():
     # required to automatically start the browser once the webserver is running
     webbrowser.open("http://127.0.0.1:5000")

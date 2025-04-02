@@ -1,0 +1,80 @@
+{% extends 'index.html' %}
+
+{% block content %}
+
+<h1>Edit Frage</h1>
+
+<label for="frageSelect">Select Frage:</label>
+<select id="frageSelect" onchange="loadFrage()">
+    <option value="">-- Select --</option>
+    {% for frage in fragen %}
+    <option value="{{ frage.Bez }}">{{ frage.Bez }}</option>
+    {% endfor %}
+</select>
+
+<form id="frageForm">
+    <label for="bez">Bez:</label>
+    <input type="text" id="bez" name="bez" required><br>
+
+    <label for="text">Text:</label>
+    <textarea id="text" name="text" rows="4" required></textarea><br>
+
+    <label for="bem">Bem:</label>
+    <textarea id="bem" name="bem" rows="2"></textarea><br>
+
+    <label for="ja">Ja:</label>
+    <input type="number" id="ja" name="ja"><br>
+
+    <label for="nein">Nein:</label>
+    <input type="number" id="nein" name="nein"><br>
+
+    <label for="unsicher">Unsicher:</label>
+    <input type="number" id="unsicher" name="unsicher"><br>
+
+    <label for="initial">Initial:</label>
+    <input type="checkbox" id="initial" name="initial"><br>
+
+    <button type="button" onclick="updateFrage()">Update</button>
+</form>
+
+<script>
+    function loadFrage() {
+        const bez = document.getElementById("frageSelect").value;
+        if (!bez) return;
+        
+        fetch(`/get_frage?bez=${encodeURIComponent(bez)}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("bez").value = data.Bez;
+                document.getElementById("text").value = data.Text;
+                document.getElementById("bem").value = data.Bem || "";
+                document.getElementById("ja").value = data.Ja || "";
+                document.getElementById("nein").value = data.Nein || "";
+                document.getElementById("unsicher").value = data.Unsicher || "";
+                document.getElementById("initial").checked = data.Initial;
+            });
+    }
+
+    function updateFrage() {
+        const formData = {
+            bez: document.getElementById("bez").value,
+            text: document.getElementById("text").value,
+            bem: document.getElementById("bem").value,
+            ja: document.getElementById("ja").value || null,
+            nein: document.getElementById("nein").value || null,
+            unsicher: document.getElementById("unsicher").value || null,
+            initial: document.getElementById("initial").checked ? 1 : 0
+        };
+
+        fetch('/update_frage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => alert(data.message))
+        .catch(error => alert("Error updating question"));
+    }
+</script>
+
+{% endblock %}

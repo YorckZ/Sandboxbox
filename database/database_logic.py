@@ -5,34 +5,35 @@ DB_PATH = "database/database.db"
 
 # <editor-fold desc="Logic">
 """
-(S)CRUD:
+CRUD:
 ======
-Search
 x Create
 Read
 Update
 Delete
 
 
+x initialize_db()
+x open_connection()
+x close_connection()
+x get_next_id()
 
+x create_element()
+x create_question()
+x create_answer()
+x create_prompt()
 
-get_max_element_ID()
-create_element()
+- read_element()
+read_question()
+read_answer()
+read_prompt()
 
-create_question()
-    open_connection()
-	get_max_element_ID()
-	create_element()
-	close_connection()
-create_answer()
-	...
-create_prompt()
-	...
-
+- update_element()
 update_question()
 update_answer()
 update_prompt()
 
+- delete_element_from_elements()
 delete_question_from_elements()
 delete_answer_from_elements()
 delete_prompt_from_elements()
@@ -181,30 +182,6 @@ def insert_into_tbl_fragen(bez: str, text: str, bem: str, ja: int, nein: int, un
     finally:
         close_connection(conn)
 
-def admin_clear_all_tables():
-    """
-    Deletes all rows from all tables in the SQLite3 database but keeps the empty tables.
-    """
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-
-        # Fetch all table names
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
-        tables = cursor.fetchall()
-
-        # Iterate through each table and delete its contents
-        for table in tables:
-            table_name = table[0]
-            cursor.execute(f"DELETE * FROM {table_name};")
-            cursor.execute(f"VACUUM;")  # Optional: Reclaim free space
-
-        conn.commit()
-        conn.close()
-        print("All table entries deleted successfully.")
-    except Exception as e:
-        print(f"Error: {e}")
-
 def admin_clean_fragen():
     try:
         conn, cursor = open_connection()
@@ -281,21 +258,28 @@ def admin_clean_prompts():
         print(e)
 
 def admin_clean_all():
+    """
+    Deletes all rows from all tables in the SQLite3 database but keeps the empty tables.
+    """
     try:
-        conn, cursor = open_connection()
-        # cursor.execute("DELETE FROM tbl_prompts;")
-        # cursor.execute("DELETE FROM tbl_antworten;")
-        # cursor.execute("DELETE FROM tbl_fragen;")
-        # cursor.execute("DELETE FROM tbl_elemente;")
-        cursor.execute("DELETE FROM tbl_prompts WHERE ID IS NOT NULL;")
-        cursor.execute("DELETE FROM tbl_antworten WHERE ID IS NOT NULL;")
-        cursor.execute("DELETE FROM tbl_fragen WHERE ID IS NOT NULL;")
-        cursor.execute("DELETE FROM tbl_elemente WHERE ID IS NOT NULL;")
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        # Fetch all table names
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
+        tables = cursor.fetchall()
+
+        # Iterate through each table and delete its contents
+        for table in tables:
+            table_name = table[0]
+            cursor.execute(f"DELETE * FROM {table_name};")
+            cursor.execute(f"VACUUM;")  # Optional: Reclaim free space
+
         conn.commit()
         conn.close()
-        print("All database entries deleted successfully.")
+        print("All table entries deleted successfully.")
     except Exception as e:
-        print(e)
+        print(f"Error: {e}")
 
 def admin_print_tbl_fragen():
     try:
@@ -371,24 +355,25 @@ def admin_print_tbl_elemente():
 
 
 if __name__ == '__main__':
+    DB_PATH = "database.db"
     init_db()
-    admin_clean_all()
+    # admin_clean_all()
+    #
+    # insert_into_tbl_fragen("Frage1", "Frage1", "Frage1", 1, 2, 3, False)
+    # insert_into_tbl_antworten("Antwort1")
+    # insert_into_tbl_prompts("Prompt1")
+    #
+    # admin_print_tbl_fragen()
+    # admin_print_tbl_antworten()
+    # admin_print_tbl_prompts()
+    # admin_print_tbl_elemente()
+    #
+    # admin_clean_fragen()
+    # admin_clean_antworten()
+    # admin_clean_prompts()
 
-    insert_into_tbl_fragen("Frage1", "Frage1", "Frage1", 1, 2, 3, False)
-    insert_into_tbl_antworten("Antwort1")
-    insert_into_tbl_prompts("Prompt1")
-
-    admin_print_tbl_fragen()
-    admin_print_tbl_antworten()
-    admin_print_tbl_prompts()
-    admin_print_tbl_elemente()
-
-    admin_clean_fragen()
-    admin_clean_antworten()
-    admin_clean_prompts()
-
-    admin_print_tbl_fragen()
-    admin_print_tbl_antworten()
-    admin_print_tbl_prompts()
-    admin_print_tbl_elemente()
+    # admin_print_tbl_fragen()
+    # admin_print_tbl_antworten()
+    # admin_print_tbl_prompts()
+    # admin_print_tbl_elemente()
 
