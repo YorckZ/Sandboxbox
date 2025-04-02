@@ -8,10 +8,10 @@ DB_PATH = "database/database.db"
 CRUD:
 ======
 x Create
-Read
-Update
+o Read
+o Update
 Delete
-
+======
 
 x initialize_db()
 x open_connection()
@@ -26,12 +26,12 @@ x create_prompt()
 - read_element()
 read_question()
 read_answer()
-read_prompt()
+x read_prompt()
 
 - update_element()
 update_question()
 update_answer()
-update_prompt()
+x update_prompt()
 
 - delete_element_from_elements()
 delete_question_from_elements()
@@ -62,23 +62,22 @@ def close_connection(connection: sqlite3.Connection):
         print(e)
 
 def init_db():
-    # with sqlite3.connect(DB_PATH) as conn:
-        # cursor = conn.cursor()
 
     conn, cursor = open_connection()
 
     # tbl_elemente
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS tbl_elemente (
-        ID INTEGER NOT NULL, -- Primary Key
-        TYP INTEGER NOT NULL -- 1=Frage, 2=Antwort, 3=Prompt
+        ID INTEGER NOT NULL PRIMARY KEY , -- Primary Key
+        table_id INTEGER NOT NULL, -- 1=Frage, 2=Antwort, 3=Prompt
+        foreign_id INTEGER NOT NULL
         )
     """)
 
     # tbl_fragen
     cursor.execute("""
                 CREATE TABLE IF NOT EXISTS tbl_fragen (
-                ID INTEGER NOT NULL, -- Primary Key
+                ID INTEGER NOT NULL PRIMARY KEY, -- Primary Key
                 Bez Text NOT NULL, -- Kurzbezeichnung der Frage
                 Text TEXT NOT NULL, -- Fragetext
                 Bem Text, -- Ergänzungstext, Hilfetext
@@ -92,15 +91,20 @@ def init_db():
     # tbl_antworten
     cursor.execute("""
                 CREATE TABLE IF NOT EXISTS tbl_antworten (
-                ID INTEGER NOT NULL, -- Primary Key
+                ID INTEGER NOT NULL PRIMARY KEY, -- Primary Key
+                Bez TEXT NOT NULL,  -- Kurzbezeichnung der Antworten
                 Text TEXT NOT NULL) -- Text der Antwort
             """)
 
     # tbl_prompts
     cursor.execute("""
                 CREATE TABLE IF NOT EXISTS tbl_prompts (
-                ID INTEGER NOT NULL , -- Primary Key
-                Text TEXT NOT NULL) -- Text des Prompts
+                ID INTEGER NOT NULL PRIMARY KEY, -- Primary Key
+                Bez TEXT NOT NULL, -- Kurzbezeichnung der Prompt
+                System TEXT NOT NULL, -- Text des Prompts
+                DSGVO TEXT, -- Text der DSGVO
+                Task TEXT -- Aufgabe des LLMs
+                )
             """)
 
     conn.commit()
@@ -121,60 +125,59 @@ def get_next_id() -> int:
         print(e)
         return -1
 
-def insert_into_tbl_elemente(element: int, typ: int):
+def insert_into_tbl_elemente(table_id: int, element_id: int):
     try:
-        # conn = sqlite3.connect(DB_PATH)
-        # cursor = conn.cursor()
         conn, cursor = open_connection()
-        cursor.execute("INSERT INTO tbl_elemente (ID, TYP) VALUES (?, ?);", (element, typ))
+        e_id = get_next_id()
+        cursor.execute("INSERT INTO tbl_elemente (ID, table_id, foreign_id) VALUES (?, ?, ?);", (e_id, table_id, element_id))
         conn.commit()
         close_connection(conn)
         print("Element inserted successfully. New ID:", cursor.lastrowid)
     except Exception as e:
         print("Error inserting data:", e)
 
-def insert_into_tbl_prompts(text: str):
-    conn = None
-
-    try:
-        conn, cursor = open_connection()
-        element: int = get_next_id()
-        insert_into_tbl_elemente(element, 3)
-
-        cursor.execute("INSERT INTO tbl_prompts (ID, Text) VALUES (?, ?);", (element, text))
-
-        conn.commit()
-    except Exception as e:
-        print(e)
-    finally:
-        close_connection(conn)
-
-def insert_into_tbl_antworten(text: str):
-    conn = None
-
-    try:
-        conn, cursor = open_connection()
-        element: int = get_next_id()
-        insert_into_tbl_elemente(element, 2)
-
-        cursor.execute("INSERT INTO tbl_antworten (ID, Text) VALUES (?, ?);", (element, text))
-
-        conn.commit()
-    except Exception as e:
-        print(e)
-    finally:
-        close_connection(conn)
-
 def insert_into_tbl_fragen(bez: str, text: str, bem: str, ja: int, nein: int, unsicher: int, initial: bool):
     conn = None
 
     try:
         conn, cursor = open_connection()
-        element: int = get_next_id()
-        insert_into_tbl_elemente(element, 1)
+        element_id: int = get_next_id()
+        insert_into_tbl_elemente(1, element_id)
 
         cursor.execute("INSERT INTO tbl_fragen (ID, Bez, Text, Bem, Ja, Nein, unsicher, Initial) VALUES ("
-                       "?, ?, ?, ?, ?, ?, ?, ?);", (element, bez, text, bem, ja, nein, unsicher, initial))
+                       "?, ?, ?, ?, ?, ?, ?, ?);", (element_id, bez, text, bem, ja, nein, unsicher, initial))
+
+        conn.commit()
+    except Exception as e:
+        print(e)
+    finally:
+        close_connection(conn)
+
+def insert_into_tbl_antworten(bez: str, text: str):
+    conn = None
+
+    try:
+        conn, cursor = open_connection()
+        element_id: int = get_next_id()
+        insert_into_tbl_elemente(2, element_id)
+
+        cursor.execute("INSERT INTO tbl_antworten (ID, Bez, Text) VALUES (?, ?, ?);", (element_id, bez, text))
+
+        conn.commit()
+    except Exception as e:
+        print(e)
+    finally:
+        close_connection(conn)
+
+def insert_into_tbl_prompts(bez:str, system: str, dsgvo: str, task: str):
+    conn = None
+
+    try:
+        conn, cursor = open_connection()
+        element_id: int = get_next_id()
+        insert_into_tbl_elemente(3, element_id)
+
+        cursor.execute("INSERT INTO tbl_prompts (ID, Bez, System, DSGVO, Task) VALUES (?, ?, ?, ?, ?);", (element_id, bez, system, dsgvo, task))
 
         conn.commit()
     except Exception as e:
@@ -353,11 +356,23 @@ def admin_print_tbl_elemente():
     except Exception as e:
         print(e)
 
+def admin_nuke_database():
+    admin_clean_all()
+    init_db()
+
+def admin_print_all_tables():
+    admin_print_tbl_elemente()
+    admin_print_tbl_fragen()
+    admin_print_tbl_antworten()
+    admin_print_tbl_prompts()
+
 
 if __name__ == '__main__':
     DB_PATH = "database.db"
-    init_db()
+    # admin_nuke_database()
     # admin_clean_all()
+    init_db()
+    # admin_print_all_tables()
     #
     # insert_into_tbl_fragen("Frage1", "Frage1", "Frage1", 1, 2, 3, False)
     # insert_into_tbl_antworten("Antwort1")

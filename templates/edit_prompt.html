@@ -1,0 +1,89 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Prompt bearbeiten</h2>
+    <form id="promptForm">
+        <div class="mb-3">
+            <label for="bezDropdown" class="form-label">Wähle eine Kurzbezeichnung:</label>
+            <select class="form-control" id="bezDropdown" name="bezDropdown">
+                <option value="">-- Bitte wählen --</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="bez" class="form-label">Kurzbezeichnung:</label>
+            <input type="text" class="form-control" id="bez" name="bez" required>
+        </div>
+        <div class="mb-3">
+            <label for="system" class="form-label">System:</label>
+            <textarea class="form-control" id="system" name="system" required></textarea>
+        </div>
+        <div class="mb-3">
+            <label for="dsgvo" class="form-label">DSGVO:</label>
+            <textarea class="form-control" id="dsgvo" name="dsgvo"></textarea>
+        </div>
+        <div class="mb-3">
+            <label for="task" class="form-label">Aufgabe des LLMs:</label>
+            <textarea class="form-control" id="task" name="task"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Ändern</button>
+    </form>
+    <p id="statusMessage" class="mt-2"></p>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        fetch("/get_prompts")
+            .then(response => response.json())
+            .then(data => {
+                let dropdown = document.getElementById("bezDropdown");
+                data.forEach(prompt => {
+                    let option = document.createElement("option");
+                    option.value = prompt.ID;
+                    option.textContent = prompt.Bez;
+                    dropdown.appendChild(option);
+                });
+            })
+            .catch(error => console.error("Fehler beim Laden der Prompts:", error));
+    });
+
+    document.getElementById("bezDropdown").addEventListener("change", function() {
+        let promptId = this.value;
+        if (!promptId) return;
+
+        fetch(`/get_prompt/${promptId}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("bez").value = data.Bez;
+                document.getElementById("system").value = data.System;
+                document.getElementById("dsgvo").value = data.DSGVO || "";
+                document.getElementById("task").value = data.Task || "";
+            })
+            .catch(error => console.error("Fehler beim Laden des Prompts:", error));
+    });
+
+    document.getElementById("promptForm").addEventListener("submit", function(event) {
+        event.preventDefault();
+        let formData = {
+            id: document.getElementById("bezDropdown").value,
+            bez: document.getElementById("bez").value,
+            system: document.getElementById("system").value,
+            dsgvo: document.getElementById("dsgvo").value,
+            task: document.getElementById("task").value
+        };
+        
+        fetch("/update_prompt", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById("statusMessage").textContent = data.message;
+        })
+        .catch(error => console.error("Fehler:", error));
+    });
+</script>
+{% endblock %}

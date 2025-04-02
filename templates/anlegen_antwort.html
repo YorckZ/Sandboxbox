@@ -1,0 +1,43 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Neue Antwort anlegen</h2>
+    <form id="antwortForm">
+        <div class="mb-3">
+            <label for="bez" class="form-label">Kurzbezeichnung:</label>
+            <input type="text" class="form-control" id="bez" name="bez" required>
+        </div>
+        <div class="mb-3">
+            <label for="text" class="form-label">Antworttext:</label>
+            <textarea class="form-control" id="text" name="text" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Speichern</button>
+    </form>
+    <p id="statusMessage" class="mt-2"></p>
+</div>
+
+<script>
+    document.getElementById("antwortForm").addEventListener("submit", function(event) {
+        event.preventDefault();
+        let formData = {
+            bez: document.getElementById("bez").value,
+            text: document.getElementById("text").value
+        };
+        
+        fetch("/save_antwort", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById("statusMessage").textContent = data.message;
+            document.getElementById("antwortForm").reset();
+        })
+        .catch(error => console.error("Fehler:", error));
+    });
+</script>
+{% endblock %}

@@ -10,7 +10,7 @@ import threading
 import os
 # import io
 # import PyPDF2
-# import sqlite3
+import sqlite3
 import database.database_logic as db
 
 
@@ -40,26 +40,15 @@ def sat():
     return render_template('dynamic.html')
 
 
-@app.route('/insert_prompt')
-def insert_prompt():
-    return render_template('insert_prompt.html')
+@app.route('/new')
+def new():
+    # Self-Assessment Tool Page
+    return render_template('new.html')
 
 
-@app.route('/save_prompt', methods=['POST'])
-def save_prompt():
-    data = request.get_json()
-    text = data.get("text", "").strip()
-
-    if text:
-        db.insert_into_tbl_prompts(text)
-        return jsonify({"message": "Prompt saved successfully!"})
-    else:
-        return jsonify({"message": "Input cannot be empty!"}), 400
-
-
-@app.route('/insert_frage')
-def insert_frage():
-    return render_template('insert_frage.html')
+@app.route('/anlegen_frage')
+def anlegen_frage():
+    return render_template('anlegen_frage.html')
 
 
 @app.route('/save_frage', methods=['POST'])
@@ -87,9 +76,117 @@ def save_frage():
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
 
 
-# @app.route('/edit_frage')
-# def edit_frage():
-#     return render_template('edit_frage.html')
+@app.route('/anlegen_antwort')
+def anlegen_antwort():
+    return render_template('anlegen_antwort.html')
+
+
+@app.route('/save_antwort', methods=['POST'])
+def save_antwort():
+    try:
+        data = request.get_json()
+
+        # Extract and sanitize input values
+        bez = data.get("bez", "").strip()
+        text = data.get("text", "").strip()
+
+        # Call database function to insert the question
+        db.insert_into_tbl_antworten(bez, text)
+
+        return jsonify({"message": "Ergebnis erfolgreich gespeichert!"})
+
+    except ValueError:
+        return jsonify({"message": "Fehler: Ungültige Eingabewerte!"}), 400
+    except Exception as e:
+        return jsonify({"message": f"Fehler: {str(e)}"}), 500
+
+
+# <editor-fold desc="Prompts">
+@app.route('/anlegen_prompt')
+def anlegen_prompt():
+    return render_template('anlegen_prompt.html')
+
+
+@app.route('/save_prompt', methods=['POST'])
+def save_prompt():
+    try:
+        data = request.get_json()
+
+        # Extract and sanitize input values
+        bez = data.get("bez")
+        system = data.get("system")
+        dsgvo = data.get("dsgvo", "")
+        task = data.get("task", "")
+
+        # Call database function to insert the prompt
+        db.insert_into_tbl_prompts(bez, system, dsgvo, task)
+
+        return jsonify({"message": "Prompt saved successfully!"})
+
+    except ValueError:
+        return jsonify({"message": "Fehlende erforderliche Felder!"}), 400
+    except Exception as e:
+        return jsonify({"message": f"Fehler: {str(e)}"}), 500
+
+
+@app.route('/edit_prompt')
+def edit_prompt():
+    return render_template('edit_prompt.html')
+
+
+@app.route("/get_prompts", methods=["GET"])
+def get_prompts():
+    conn, cursor = db.open_connection()
+    cursor.execute("SELECT ID, Bez FROM tbl_prompts")
+    prompts = cursor.fetchall()
+    db.close_connection(conn)
+    return jsonify([{"ID": row[0], "Bez": row[1]} for row in prompts])
+
+
+@app.route("/get_prompt/<int:prompt_id>", methods=["GET"])
+def get_prompt(prompt_id):
+    conn, cursor = db.open_connection()
+    cursor.execute("SELECT Bez, System, DSGVO, Task FROM tbl_prompts WHERE ID = ?", (prompt_id,))
+    prompt = cursor.fetchone()
+    db.close_connection(conn)
+
+    if prompt:
+        return jsonify({
+            "Bez": prompt[0],
+            "System": prompt[1],
+            "DSGVO": prompt[2],
+            "Task": prompt[3]
+        })
+    else:
+        return jsonify({"message": "Prompt nicht gefunden"}), 404
+
+
+@app.route("/update_prompt", methods=["POST"])
+def update_prompt():
+    data = request.get_json()
+
+    prompt_id = data.get("id")
+    bez = data.get("bez")
+    system = data.get("system")
+    dsgvo = data.get("dsgvo", "")
+    task = data.get("task", "")
+
+    if not prompt_id or not bez or not system:
+        return jsonify({"message": "Fehlende erforderliche Felder!"}), 400
+
+    conn, cursor = db.open_connection()
+
+    cursor.execute("""
+        UPDATE tbl_prompts
+        SET Bez = ?, System = ?, DSGVO = ?, Task = ?
+        WHERE ID = ?
+    """, (bez, system, dsgvo, task, prompt_id))
+
+    conn.commit()
+    db.close_connection(conn)
+
+    return jsonify({"message": "Prompt erfolgreich aktualisiert!"})
+# </editor-fold>
 
 
 def open_browser():
