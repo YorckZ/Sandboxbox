@@ -10,7 +10,7 @@ CRUD:
 x Create
 o Read
 o Update
-Delete
+o Delete
 ======
 
 x initialize_db()
@@ -33,17 +33,10 @@ update_question()
 update_answer()
 x update_prompt()
 
-- delete_element_from_elements()
-delete_question_from_elements()
-delete_answer_from_elements()
-delete_prompt_from_elements()
-
+x delete_element()
 delete_question()
-	delete_question_from_elements()
 delete_answer()
-	delete_answer_from_elements()
-delete_prompt()
-	delete_prompt_from_elements()
+x delete_prompt()
 """
 # </editor-fold>
 
@@ -185,6 +178,52 @@ def insert_into_tbl_prompts(bez:str, system: str, dsgvo: str, task: str):
     finally:
         close_connection(conn)
 
+# ===========================================================================================================
+
+def delete_element(e_id):
+    conn, cursor = open_connection()
+    cursor.execute("DELETE FROM tbl_elemente WHERE foreign_id = ?", (e_id,))
+    conn.commit()
+    close_connection(conn)
+
+def get_all_prompts():
+    """Fetches all prompts' IDs and names from tbl_prompts."""
+    conn, cursor = open_connection()
+    cursor.execute("SELECT ID, Bez FROM tbl_prompts")
+    prompts = cursor.fetchall()
+    close_connection(conn)
+    return [{"ID": row[0], "Bez": row[1]} for row in prompts]
+
+def get_prompt_by_id(prompt_id):
+    """Fetches a single prompt by ID."""
+    conn, cursor = open_connection()
+    cursor.execute("SELECT Bez, System, DSGVO, Task FROM tbl_prompts WHERE ID = ?", (prompt_id,))
+    prompt = cursor.fetchone()
+    close_connection(conn)
+
+    if prompt:
+        return {"Bez": prompt[0], "System": prompt[1], "DSGVO": prompt[2], "Task": prompt[3]}
+    return None
+
+def update_prompt(prompt_id, bez, system, dsgvo, task):
+    """Updates an existing prompt."""
+    conn, cursor = open_connection()
+    cursor.execute("""
+        UPDATE tbl_prompts SET Bez = ?, System = ?, DSGVO = ?, Task = ? WHERE ID = ?
+    """, (bez, system, dsgvo, task, prompt_id))
+    conn.commit()
+    close_connection(conn)
+
+def delete_prompt(prompt_id):
+    """Deletes a prompt from tbl_prompts based on the given ID."""
+    conn, cursor = open_connection()
+    delete_element(prompt_id)
+    cursor.execute("DELETE FROM tbl_prompts WHERE ID = ?", (prompt_id,))
+    conn.commit()
+    close_connection(conn)
+
+# ===========================================================================================================
+
 def admin_clean_fragen():
     try:
         conn, cursor = open_connection()
@@ -284,6 +323,12 @@ def admin_clean_all():
     except Exception as e:
         print(f"Error: {e}")
 
+def admin_nuke_database():
+    admin_clean_all()
+    init_db()
+
+# ===========================================================================================================
+
 def admin_print_tbl_fragen():
     try:
         conn, cursor = open_connection()
@@ -356,15 +401,13 @@ def admin_print_tbl_elemente():
     except Exception as e:
         print(e)
 
-def admin_nuke_database():
-    admin_clean_all()
-    init_db()
-
 def admin_print_all_tables():
     admin_print_tbl_elemente()
     admin_print_tbl_fragen()
     admin_print_tbl_antworten()
     admin_print_tbl_prompts()
+
+# ===========================================================================================================
 
 
 if __name__ == '__main__':
@@ -391,4 +434,3 @@ if __name__ == '__main__':
     # admin_print_tbl_antworten()
     # admin_print_tbl_prompts()
     # admin_print_tbl_elemente()
-

@@ -27,6 +27,7 @@
             <textarea class="form-control" id="task" name="task"></textarea>
         </div>
         <button type="submit" class="btn btn-primary">Ändern</button>
+        <button id="deleteBtn" type="button" onclick="deletePrompt()">Delete</button>
     </form>
     <p id="statusMessage" class="mt-2"></p>
 </div>
@@ -85,5 +86,25 @@
         })
         .catch(error => console.error("Fehler:", error));
     });
+    function deletePrompt() {
+        const promptId = document.getElementById("bezDropdown").value; // Correct ID
+        if (!promptId) {
+            alert("Bitte wählen Sie einen Prompt zum Löschen aus!");
+            return;
+        }
+
+        if (confirm("Möchten Sie diesen Prompt wirklich löschen?")) {
+            fetch(`/delete_prompt/${promptId}`, {
+                method: "DELETE"
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                location.reload();
+            })
+            .catch(error => console.error("Fehler:", error));
+        }
+    }
 </script>
+
 {% endblock %}
