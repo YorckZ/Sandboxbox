@@ -5,31 +5,52 @@
     <h2>Neue Frage hinzufügen</h2>
     <form id="frageForm">
         <div class="mb-3">
-            <label for="bez" class="form-label">Kurzbezeichnung:</label>
+            <label for="bez" class="form-label">
+                Kurzbezeichnung:
+                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Eindeutiger Kurzname für die Frage."></i>
+            </label>
             <input type="text" class="form-control" id="bez" name="bez" required>
         </div>
         <div class="mb-3">
-            <label for="text" class="form-label">Fragetext:</label>
+            <label for="text" class="form-label">
+                Fragetext:
+                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Der vollständige Text der Frage, wie sie angezeigt wird."></i>
+            </label>
             <textarea class="form-control" id="text" name="text" required></textarea>
         </div>
         <div class="mb-3">
-            <label for="bem" class="form-label">Bemerkung:</label>
+            <label for="bem" class="form-label">
+                Bemerkung:
+                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Zusätzliche Hinweise oder Hilfestellung zur Frage."></i>
+            </label>
             <textarea class="form-control" id="bem" name="bem"></textarea>
         </div>
         <div class="mb-3">
-            <label for="ja" class="form-label">Ja (nächstes Element ID):</label>
+            <label for="ja" class="form-label">
+                Ja (nächstes Element ID):
+                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="ID des nächsten Elements, falls 'Ja' gewählt wird."></i>
+            </label>
             <input type="number" class="form-control" id="ja" name="ja">
         </div>
         <div class="mb-3">
-            <label for="nein" class="form-label">Nein (nächstes Element ID):</label>
+            <label for="nein" class="form-label">
+                Nein (nächstes Element ID):
+                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="ID des nächsten Elements, falls 'Nein' gewählt wird."></i>
+            </label>
             <input type="number" class="form-control" id="nein" name="nein">
         </div>
         <div class="mb-3">
-            <label for="unsicher" class="form-label">Unsicher (nächstes Element ID):</label>
+            <label for="unsicher" class="form-label">
+                Unsicher (nächstes Element ID):
+                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="ID des nächsten Elements, falls 'Unsicher' gewählt wird."></i>
+            </label>
             <input type="number" class="form-control" id="unsicher" name="unsicher">
         </div>
         <div class="mb-3">
-            <label for="initial" class="form-label">Ist dies die Startfrage?</label>
+            <label for="initial" class="form-label">
+                Ist dies die Startfrage?
+                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Legt fest, ob diese Frage die erste im Entscheidungsbaum ist."></i>
+            </label>
             <select class="form-control" id="initial" name="initial">
                 <option value="0">Nein</option>
                 <option value="1">Ja</option>
@@ -40,32 +61,40 @@
     <p id="statusMessage" class="mt-2"></p>
 </div>
 
+<!-- Bootstrap Tooltips Activation Script -->
 <script>
-    document.getElementById("frageForm").addEventListener("submit", function(event) {
-        event.preventDefault();
-        let formData = {
-            bez: document.getElementById("bez").value,
-            text: document.getElementById("text").value,
-            bem: document.getElementById("bem").value,
-            ja: document.getElementById("ja").value || null,
-            nein: document.getElementById("nein").value || null,
-            unsicher: document.getElementById("unsicher").value || null,
-            initial: document.getElementById("initial").value
-        };
-        
-        fetch("/save_frage", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(formData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById("statusMessage").textContent = data.message;
-            document.getElementById("frageForm").reset(); // Clear form after submission
-        })
-        .catch(error => console.error("Error:", error));
+    document.addEventListener('DOMContentLoaded', function () {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        document.getElementById("frageForm").addEventListener("submit", function (event) {
+            event.preventDefault();
+            let formData = {
+                bez: document.getElementById("bez").value,
+                text: document.getElementById("text").value,
+                bem: document.getElementById("bem").value,
+                ja: document.getElementById("ja").value || null,
+                nein: document.getElementById("nein").value || null,
+                unsicher: document.getElementById("unsicher").value || null,
+                initial: document.getElementById("initial").value
+            };
+
+            fetch("/save_frage", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(formData)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("statusMessage").textContent = data.message;
+                    document.getElementById("frageForm").reset();
+                })
+                .catch(error => console.error("Error:", error));
+        });
     });
 </script>
 {% endblock %}
