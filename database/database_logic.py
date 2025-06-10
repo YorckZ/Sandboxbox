@@ -8,9 +8,9 @@ DB_PATH = "database/database.db"
 CRUD:
 ======
 x Create
-o Read
-o Update
-o Delete
+x Read
+x Update
+x Delete
 ======
 
 x initialize_db()
@@ -22,14 +22,14 @@ x create_element()
 x delete_element()
 
 x create_question()
-read_question()
-update_question()
-delete_question()
+x read_question()
+x update_question()
+x delete_question()
 
 x create_answer()
-read_answer()
-update_answer()
-delete_answer()
+x read_answer()
+x update_answer()
+x delete_answer()
 
 x create_prompt()
 x read_prompt()
@@ -38,6 +38,7 @@ x delete_prompt()
 """
 # </editor-fold>
 
+# <editor-fold desc="Fundamental Database Functions">
 def open_connection():
     try:
         connection = sqlite3.connect(DB_PATH)
@@ -115,6 +116,7 @@ def get_next_id() -> int:
     except Exception as e:
         print(e)
         return -1
+# </editor-fold>
 
 # ===========================================================================================================
 
@@ -154,6 +156,42 @@ def create_frage(bez: str, text: str, bem: str, ja: int, nein: int, unsicher: in
     finally:
         close_connection(conn)
 
+def get_all_fragen():
+    """Fetches all questions' IDs and names from tbl_fragen."""
+    conn, cursor = open_connection()
+    cursor.execute("SELECT ID, Bez FROM tbl_fragen")
+    fragen = cursor.fetchall()
+    close_connection(conn)
+    return [{"ID": row[0], "Bez": row[1]} for row in fragen]
+
+def get_frage_by_id(frage_id: int):
+    """Fetches a single frage by ID."""
+    conn, cursor = open_connection()
+    cursor.execute("SELECT Bez, Text, Bem, Ja, Nein, unsicher, Initial FROM tbl_fragen WHERE ID = ?", (frage_id,))
+    frage = cursor.fetchone()
+    close_connection(conn)
+
+    if frage:
+        return {"Bez": frage[0], "Text": frage[1], "Bem": frage[2], "Ja": frage[3], "Nein": frage[4], "unsicher": frage[5], "Initial": frage[6]}
+    return None
+
+def update_frage(frage_id: int, bez: str, text: str, bem: str, ja: int, nein: int, unsicher: int, initial: bool):
+    """Updates an existing frage."""
+    conn, cursor = open_connection()
+    cursor.execute("""
+        UPDATE tbl_fragen SET Bez = ?, Text = ?, Bem = ?, Ja = ?, Nein = ?, unsicher = ?, Initial = ? WHERE ID = ?
+    """, (bez, text, bem, ja, nein, unsicher, initial, frage_id))
+    conn.commit()
+    close_connection(conn)
+
+def delete_frage(frage_id: int):
+    """Deletes a prompt from tbl_prompts based on the given ID."""
+    conn, cursor = open_connection()
+    delete_element(frage_id)
+    cursor.execute("DELETE FROM tbl_fragen WHERE ID = ?", (frage_id,))
+    conn.commit()
+    close_connection(conn)
+
 # ===========================================================================================================
 
 def create_antwort(bez: str, text: str):
@@ -171,6 +209,42 @@ def create_antwort(bez: str, text: str):
         print(e)
     finally:
         close_connection(conn)
+
+def get_all_antworten():
+    """Fetches all antwort IDs and names from tbl_antworten."""
+    conn, cursor = open_connection()
+    cursor.execute("SELECT ID, Bez, Text FROM tbl_antworten")
+    antworten = cursor.fetchall()
+    close_connection(conn)
+    return [{"ID": row[0], "Bez": row[1], "Text": row[2]} for row in antworten]
+
+def get_antwort_by_id(antwort_id: int):
+    """Fetches a single antwort by ID."""
+    conn, cursor = open_connection()
+    cursor.execute("SELECT Bez, Text FROM tbl_antworten WHERE ID = ?", (antwort_id,))
+    antwort = cursor.fetchone()
+    close_connection(conn)
+
+    if antwort:
+        return {"Bez": antwort[0], "Text": antwort[1]}
+    return None
+
+def update_antwort(antwort_id: int, bez: str, text: str):
+    """Updates an existing antwort."""
+    conn, cursor = open_connection()
+    cursor.execute("""
+        UPDATE tbl_antworten SET Bez = ?, Text = ? WHERE ID = ?
+    """, (bez, text, antwort_id))
+    conn.commit()
+    close_connection(conn)
+
+def delete_antwort(antwort_id: int):
+    """Deletes an antwort from tbl_antworten based on the given ID."""
+    conn, cursor = open_connection()
+    delete_element(antwort_id)
+    cursor.execute("DELETE FROM tbl_antworten WHERE ID = ?", (antwort_id,))
+    conn.commit()
+    close_connection(conn)
 
 # ===========================================================================================================
 

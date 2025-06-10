@@ -30,28 +30,22 @@ app = Flask(__name__)
 db.init_db()
 # </editor-fold>
 
-
 @app.route('/')
 def home():
     # Main Page
     return render_template('index.html')
-
 
 @app.route('/sat')
 def sat():
     # Self-Assessment Tool Page (old style)
     return render_template('dynamic.html')
 
-
 @app.route('/new')
 def new():
     # Self-Assessment Tool Page (new style)
     return render_template('new.html')
 
-
-
-
-
+# ===========================================================================================================
 
 # <editor-fold desc="Fragen">
 
@@ -86,10 +80,6 @@ def save_frage():
 @app.route('/edit_frage')
 def edit_frage():
     return render_template('edit_frage.html')
-
-
-
-
 
 @app.route("/get_fragen", methods=["GET"])
 def get_fragen():
@@ -149,21 +139,9 @@ def delete_frage(frage_id):
     except Exception as e:
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 # </editor-fold>
 
+# ===========================================================================================================
 
 # <editor-fold desc="Antworten">
 @app.route('/anlegen_antwort')
@@ -191,6 +169,7 @@ def save_antwort():
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
 # </editor-fold>
 
+# ===========================================================================================================
 
 # <editor-fold desc="Prompts">
 
@@ -262,6 +241,7 @@ def delete_prompt(prompt_id):
 
 # </editor-fold>
 
+# ===========================================================================================================
 
 def open_browser():
     # required to automatically start the browser once the webserver is running
