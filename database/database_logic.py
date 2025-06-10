@@ -19,23 +19,21 @@ x close_connection()
 x get_next_id()
 
 x create_element()
-x create_question()
-x create_answer()
-x create_prompt()
-
-- read_element()
-read_question()
-read_answer()
-x read_prompt()
-
-- update_element()
-update_question()
-update_answer()
-x update_prompt()
-
 x delete_element()
+
+x create_question()
+read_question()
+update_question()
 delete_question()
+
+x create_answer()
+read_answer()
+update_answer()
 delete_answer()
+
+x create_prompt()
+x read_prompt()
+x update_prompt()
 x delete_prompt()
 """
 # </editor-fold>
@@ -118,7 +116,9 @@ def get_next_id() -> int:
         print(e)
         return -1
 
-def insert_into_tbl_elemente(table_id: int, element_id: int):
+# ===========================================================================================================
+
+def create_element(table_id: int, element_id: int):
     try:
         conn, cursor = open_connection()
         e_id = get_next_id()
@@ -129,13 +129,21 @@ def insert_into_tbl_elemente(table_id: int, element_id: int):
     except Exception as e:
         print("Error inserting data:", e)
 
-def insert_into_tbl_fragen(bez: str, text: str, bem: str, ja: int, nein: int, unsicher: int, initial: bool):
+def delete_element(e_id):
+    conn, cursor = open_connection()
+    cursor.execute("DELETE FROM tbl_elemente WHERE foreign_id = ?", (e_id,))
+    conn.commit()
+    close_connection(conn)
+
+# ===========================================================================================================
+
+def create_frage(bez: str, text: str, bem: str, ja: int, nein: int, unsicher: int, initial: bool):
     conn = None
 
     try:
         conn, cursor = open_connection()
         element_id: int = get_next_id()
-        insert_into_tbl_elemente(1, element_id)
+        create_element(1, element_id)
 
         cursor.execute("INSERT INTO tbl_fragen (ID, Bez, Text, Bem, Ja, Nein, unsicher, Initial) VALUES ("
                        "?, ?, ?, ?, ?, ?, ?, ?);", (element_id, bez, text, bem, ja, nein, unsicher, initial))
@@ -146,13 +154,15 @@ def insert_into_tbl_fragen(bez: str, text: str, bem: str, ja: int, nein: int, un
     finally:
         close_connection(conn)
 
-def insert_into_tbl_antworten(bez: str, text: str):
+# ===========================================================================================================
+
+def create_antwort(bez: str, text: str):
     conn = None
 
     try:
         conn, cursor = open_connection()
         element_id: int = get_next_id()
-        insert_into_tbl_elemente(2, element_id)
+        create_element(2, element_id)
 
         cursor.execute("INSERT INTO tbl_antworten (ID, Bez, Text) VALUES (?, ?, ?);", (element_id, bez, text))
 
@@ -162,13 +172,15 @@ def insert_into_tbl_antworten(bez: str, text: str):
     finally:
         close_connection(conn)
 
-def insert_into_tbl_prompts(bez:str, system: str, dsgvo: str, task: str):
+# ===========================================================================================================
+
+def create_prompt(bez:str, system: str, dsgvo: str, task: str):
     conn = None
 
     try:
         conn, cursor = open_connection()
         element_id: int = get_next_id()
-        insert_into_tbl_elemente(3, element_id)
+        create_element(3, element_id)
 
         cursor.execute("INSERT INTO tbl_prompts (ID, Bez, System, DSGVO, Task) VALUES (?, ?, ?, ?, ?);", (element_id, bez, system, dsgvo, task))
 
@@ -177,14 +189,6 @@ def insert_into_tbl_prompts(bez:str, system: str, dsgvo: str, task: str):
         print(e)
     finally:
         close_connection(conn)
-
-# ===========================================================================================================
-
-def delete_element(e_id):
-    conn, cursor = open_connection()
-    cursor.execute("DELETE FROM tbl_elemente WHERE foreign_id = ?", (e_id,))
-    conn.commit()
-    close_connection(conn)
 
 def get_all_prompts():
     """Fetches all prompts' IDs and names from tbl_prompts."""

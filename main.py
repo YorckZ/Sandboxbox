@@ -19,10 +19,13 @@ app = Flask(__name__)
 # UPLOAD_FOLDER = 'uploads'
 # app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+#
 # load_dotenv()
 # api_key = os.getenv("OPENAI_API_KEY")
+#
 # if not api_key:
 #     raise ValueError("API key not found. Please make sure OPENAI_API_KEY is set in the .env file.")
+#
 # client = OpenAI(api_key=api_key)
 db.init_db()
 # </editor-fold>
@@ -36,13 +39,13 @@ def home():
 
 @app.route('/sat')
 def sat():
-    # Self-Assessment Tool Page
+    # Self-Assessment Tool Page (old style)
     return render_template('dynamic.html')
 
 
 @app.route('/new')
 def new():
-    # Self-Assessment Tool Page
+    # Self-Assessment Tool Page (new style)
     return render_template('new.html')
 
 
@@ -71,7 +74,7 @@ def save_frage():
         initial = bool(int(data.get("initial", 0)))  # Convert "0"/"1" to boolean
 
         # Call database function to insert the question
-        db.insert_into_tbl_fragen(bez, text, bem, ja, nein, unsicher, initial)
+        db.create_frage(bez, text, bem, ja, nein, unsicher, initial)
 
         return jsonify({"message": "Frage erfolgreich gespeichert!"})
 
@@ -178,7 +181,7 @@ def save_antwort():
         text = data.get("text", "").strip()
 
         # Call database function to insert the question
-        db.insert_into_tbl_antworten(bez, text)
+        db.create_antwort(bez, text)
 
         return jsonify({"message": "Ergebnis erfolgreich gespeichert!"})
 
@@ -207,7 +210,7 @@ def save_prompt():
         task = data.get("task", "")
 
         # Call database function to insert the prompt
-        db.insert_into_tbl_prompts(bez, system, dsgvo, task)
+        db.create_prompt(bez, system, dsgvo, task)
 
         return jsonify({"message": "Prompt saved successfully!"})
 
