@@ -79,7 +79,9 @@ def save_frage():
 
 @app.route('/edit_frage')
 def edit_frage():
-    return render_template('edit_frage.html')
+    fragen = db.get_all_fragen()
+    fragen_sorted = sorted(fragen, key=lambda x: x["Bez"])
+    return render_template('edit_frage.html', fragen=fragen_sorted)
 
 @app.route("/get_fragen", methods=["GET"])
 def get_fragen():
@@ -94,15 +96,7 @@ def get_frage(frage_id):
     try:
         frage = db.get_frage_by_id(frage_id)
         if frage:
-            return jsonify({
-                "Bez": frage[0],
-                "Text": frage[1],
-                "Bem": frage[2],
-                "Ja": frage[3],
-                "Nein": frage[4],
-                "Unsicher": frage[5],
-                "Initial": frage[6]
-            })
+            return jsonify(frage)
         else:
             return jsonify({"message": "Frage nicht gefunden"}), 404
     except Exception as e:
@@ -130,6 +124,12 @@ def update_frage():
         return jsonify({"message": "Frage erfolgreich aktualisiert!"})
     except Exception as e:
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
+
+@app.route("/loeschen_frage")
+def delete_frage_page():
+    fragen = db.get_all_fragen()
+    fragen_sorted = sorted(fragen, key=lambda x: x["Bez"])
+    return render_template("loeschen_frage.html", fragen=fragen_sorted)
 
 @app.route("/delete_frage/<int:frage_id>", methods=["DELETE"])
 def delete_frage(frage_id):

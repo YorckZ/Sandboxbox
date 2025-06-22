@@ -8,9 +8,10 @@
 <select id="frageSelect" onchange="loadFrage()">
     <option value="">-- Select --</option>
     {% for frage in fragen %}
-    <option value="{{ frage.Bez }}">{{ frage.Bez }}</option>
+        <option value="{{ frage.ID }}">{{ frage.Bez }}</option>
     {% endfor %}
 </select>
+
 
 <form id="frageForm">
     <label for="bez">Bez:</label>
@@ -39,24 +40,34 @@
 
 <script>
     function loadFrage() {
-        const bez = document.getElementById("frageSelect").value;
-        if (!bez) return;
-        
-        fetch(`/get_frage?bez=${encodeURIComponent(bez)}`)
+        const frageId = document.getElementById("frageSelect").value;
+        if (!frageId) return;
+
+        fetch(`/get_frage/${frageId}`)
             .then(response => response.json())
             .then(data => {
-                document.getElementById("bez").value = data.Bez;
-                document.getElementById("text").value = data.Text;
+                document.getElementById("bez").value = data.Bez || "";
+                document.getElementById("text").value = data.Text || "";
                 document.getElementById("bem").value = data.Bem || "";
                 document.getElementById("ja").value = data.Ja || "";
                 document.getElementById("nein").value = data.Nein || "";
                 document.getElementById("unsicher").value = data.Unsicher || "";
                 document.getElementById("initial").checked = data.Initial;
-            });
+
+                document.getElementById("frageForm").dataset.frageId = frageId;
+            })
+            .catch(error => alert("Fehler beim Laden der Frage."));
     }
 
     function updateFrage() {
+        const frageId = document.getElementById("frageForm").dataset.frageId;
+        if (!frageId) {
+            alert("Bitte zuerst eine Frage auswählen.");
+            return;
+        }
+
         const formData = {
+            id: parseInt(frageId),
             bez: document.getElementById("bez").value,
             text: document.getElementById("text").value,
             bem: document.getElementById("bem").value,
@@ -73,7 +84,7 @@
         })
         .then(response => response.json())
         .then(data => alert(data.message))
-        .catch(error => alert("Error updating question"));
+        .catch(error => alert("Fehler beim Aktualisieren der Frage."));
     }
 </script>
 
