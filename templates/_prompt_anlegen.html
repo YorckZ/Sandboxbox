@@ -1,0 +1,73 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Neuen Prompt hinzufügen</h2>
+    <form id="promptForm">
+        <div class="mb-3">
+            <label for="bez" class="form-label">
+                Kurzbezeichnung:
+                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Eindeutiger Kurzname für den Prompt."></i>
+            </label>
+            <input type="text" class="form-control" id="bez" name="bez" required>
+        </div>
+        <div class="mb-3">
+            <label for="system" class="form-label">
+                System:
+                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="System-Prompt: Steuert das Verhalten des LLMs (z. B. Rollenbeschreibung oder Formatvorgaben)."></i>
+            </label>
+            <textarea class="form-control" id="system" name="system" required></textarea>
+        </div>
+        <div class="mb-3">
+            <label for="dsgvo" class="form-label">
+                DSGVO:
+                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Geben Sie hier ggf. DSGVO-relevante Hinweise oder Einschränkungen für den Prompt ein."></i>
+            </label>
+            <textarea class="form-control" id="dsgvo" name="dsgvo"></textarea>
+        </div>
+        <div class="mb-3">
+            <label for="task" class="form-label">
+                Aufgabe des LLMs:
+                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Beschreiben Sie die konkrete Aufgabe oder den Anwendungszweck für das LLM."></i>
+            </label>
+            <textarea class="form-control" id="task" name="task"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Speichern</button>
+    </form>
+    <p id="statusMessage" class="mt-2"></p>
+</div>
+
+<!-- Bootstrap Tooltips Activation Script -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        document.getElementById("promptForm").addEventListener("submit", function (event) {
+            event.preventDefault();
+            let formData = {
+                bez: document.getElementById("bez").value,
+                system: document.getElementById("system").value,
+                dsgvo: document.getElementById("dsgvo").value,
+                task: document.getElementById("task").value
+            };
+
+            fetch("/save_prompt", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("statusMessage").textContent = data.message;
+                document.getElementById("promptForm").reset();
+            })
+            .catch(error => console.error("Fehler:", error));
+        });
+    });
+</script>
+{% endblock %}

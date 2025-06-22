@@ -51,7 +51,7 @@ def new():
 
 @app.route('/anlegen_frage')
 def anlegen_frage():
-    return render_template('anlegen_frage.html')
+    return render_template('_frage_anlegen.html')
 
 @app.route('/save_frage', methods=['POST'])
 def save_frage():
@@ -81,7 +81,7 @@ def save_frage():
 def edit_frage():
     fragen = db.get_all_fragen()
     fragen_sorted = sorted(fragen, key=lambda x: x["Bez"])
-    return render_template('edit_frage.html', fragen=fragen_sorted)
+    return render_template('_frage_editieren.html', fragen=fragen_sorted)
 
 @app.route("/get_fragen", methods=["GET"])
 def get_fragen():
@@ -129,7 +129,7 @@ def update_frage():
 def delete_frage_page():
     fragen = db.get_all_fragen()
     fragen_sorted = sorted(fragen, key=lambda x: x["Bez"])
-    return render_template("loeschen_frage.html", fragen=fragen_sorted)
+    return render_template("_frage_loeschen.html", fragen=fragen_sorted)
 
 @app.route("/delete_frage/<int:frage_id>", methods=["DELETE"])
 def delete_frage(frage_id):
@@ -146,7 +146,7 @@ def delete_frage(frage_id):
 # <editor-fold desc="Antworten">
 @app.route('/anlegen_antwort')
 def anlegen_antwort():
-    return render_template('anlegen_antwort.html')
+    return render_template('_antwort_anlegen.html')
 
 
 @app.route('/save_antwort', methods=['POST'])
@@ -175,7 +175,7 @@ def save_antwort():
 
 @app.route('/anlegen_prompt')
 def anlegen_prompt():
-    return render_template('anlegen_prompt.html')
+    return render_template('_prompt_anlegen.html')
 
 @app.route('/save_prompt', methods=['POST'])
 def save_prompt():
@@ -200,7 +200,7 @@ def save_prompt():
 
 @app.route('/edit_prompt')
 def edit_prompt():
-    return render_template('edit_prompt.html')
+    return render_template('_prompt_editieren.html')
 
 @app.route("/get_prompts", methods=["GET"])
 def get_prompts():
@@ -231,6 +231,11 @@ def update_prompt():
     except Exception as e:
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
 
+@app.route('/loeschen_prompt')
+def loeschen_prompt():
+    prompts = db.get_all_prompts()
+    return render_template('_prompt_loeschen.html', prompts=prompts)
+
 @app.route("/delete_prompt/<int:prompt_id>", methods=["DELETE"])
 def delete_prompt(prompt_id):
     try:
@@ -238,6 +243,7 @@ def delete_prompt(prompt_id):
         return jsonify({"message": "Prompt erfolgreich gelöscht!"})
     except Exception as e:
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
+
 
 # </editor-fold>
 

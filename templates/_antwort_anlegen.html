@@ -1,0 +1,57 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Neue Antwort hinzufügen</h2>
+    <form id="antwortForm">
+        <div class="mb-3">
+            <label for="bez" class="form-label">
+                Identifikator:
+                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Eindeutiger Kurzname für die Antwort."></i>
+            </label>
+            <input type="text" class="form-control" id="bez" name="bez" required>
+        </div>
+        <div class="mb-3">
+            <label for="text" class="form-label">
+                Antworttext:
+                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Der vollständige Text, der als Antwort angezeigt wird."></i>
+            </label>
+            <textarea class="form-control" id="text" name="text" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Speichern</button>
+    </form>
+    <p id="statusMessage" class="mt-2"></p>
+</div>
+
+<!-- Bootstrap Tooltips Activation Script -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        document.getElementById("antwortForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+            let formData = {
+                bez: document.getElementById("bez").value,
+                text: document.getElementById("text").value
+            };
+
+            fetch("/save_antwort", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("statusMessage").textContent = data.message;
+                document.getElementById("antwortForm").reset();
+            })
+            .catch(error => console.error("Fehler:", error));
+        });
+    });
+</script>
+{% endblock %}
