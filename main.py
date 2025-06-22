@@ -83,6 +83,25 @@ def edit_frage():
     fragen_sorted = sorted(fragen, key=lambda x: x["Bez"])
     return render_template('_frage_editieren.html', fragen=fragen_sorted)
 
+@app.route("/all_bez")
+def all_bez():
+    fragen = db.get_all_fragen()
+    antworten = db.get_all_antworten()
+    prompts = db.get_all_prompts()
+
+    # get all Bez, add table type and ID if you want (for lookup purposes)
+    bez_list = []
+    for row in fragen:
+        bez_list.append({"Bez": row["Bez"], "type": "Frage", "ID": row["ID"]})
+    for row in antworten:
+        bez_list.append({"Bez": row["Bez"], "type": "Antwort", "ID": row["ID"]})
+    for row in prompts:
+        bez_list.append({"Bez": row["Bez"], "type": "Prompt", "ID": row["ID"]})
+
+    # sort alphabetically by Bez
+    bez_list.sort(key=lambda x: x["Bez"].lower())
+    return jsonify(bez_list)
+
 @app.route("/get_fragen", methods=["GET"])
 def get_fragen():
     try:

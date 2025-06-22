@@ -1,0 +1,190 @@
+{% extends "index.html" %}
+
+{% block content %}
+<style>
+.split-container {
+    display: flex;
+    width: 100vw;
+    min-height: 80vh;
+}
+.split-left, .split-right {
+    width: 50%;
+    padding: 2rem;
+    box-sizing: border-box;
+}
+.split-left {
+    border-right: 1px solid #eee;
+    background: #fafbfc;
+}
+.split-right {
+    background: #fff;
+}
+.preview-label {
+    font-weight: bold;
+    margin-top: 1.2em;
+    display: block;
+    color: #555;
+}
+.preview-box {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #f3f4f6;
+    padding: 1em;
+    margin-bottom: 0.7em;
+}
+</style>
+
+<div class="split-container">
+    <!-- LEFT: Form -->
+    <div class="split-left">
+        <h2>Neue Frage hinzufügen</h2>
+        <form id="frageForm" autocomplete="off">
+            <div class="mb-3">
+                <label for="bez" class="form-label">
+                    Identifikator:
+                    <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Eindeutiger Kurzname für die Frage."></i>
+                </label>
+                <input type="text" class="form-control" id="bez" name="bez" required>
+            </div>
+            <div class="mb-3">
+                <label for="text" class="form-label">
+                    Fragetext:
+                    <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Der vollständige Text der Frage, wie sie angezeigt wird."></i>
+                </label>
+                <textarea class="form-control" id="text" name="text" required></textarea>
+            </div>
+            <div class="mb-3">
+                <label for="bem" class="form-label">
+                    Ergänzung/Hinweis/Bemerkung:
+                    <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Zusätzliche Hinweise oder Hilfestellung zur Frage."></i>
+                </label>
+                <textarea class="form-control" id="bem" name="bem"></textarea>
+            </div>
+            <div class="mb-3">
+                <label for="ja" class="form-label">
+                    Ja (nächstes Element ID):
+                    <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="ID des nächsten Elements, falls 'Ja' gewählt wird."></i>
+                </label>
+                <input type="number" class="form-control" id="ja" name="ja">
+            </div>
+            <div class="mb-3">
+                <label for="nein" class="form-label">
+                    Nein (nächstes Element ID):
+                    <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="ID des nächsten Elements, falls 'Nein' gewählt wird."></i>
+                </label>
+                <input type="number" class="form-control" id="nein" name="nein">
+            </div>
+            <div class="mb-3">
+                <label for="unsicher" class="form-label">
+                    Unsicher (nächstes Element ID):
+                    <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="ID des nächsten Elements, falls 'Unsicher' gewählt wird."></i>
+                </label>
+                <input type="number" class="form-control" id="unsicher" name="unsicher">
+            </div>
+            <div class="mb-3">
+                <label for="initial" class="form-label">
+                    Ist dies die Startfrage?
+                    <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Legt fest, ob diese Frage die erste im Entscheidungsbaum ist."></i>
+                </label>
+                <select class="form-control" id="initial" name="initial">
+                    <option value="0">Nein</option>
+                    <option value="1">Ja</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Speichern</button>
+        </form>
+        <p id="statusMessage" class="mt-2"></p>
+    </div>
+
+    <!-- RIGHT: Live Preview -->
+    <div class="split-right">
+        <h2>Vorschau</h2>
+        <div class="preview-box">
+            <span class="preview-label">Identifikator:</span>
+            <span id="preview-bez"></span>
+        </div>
+        <div class="preview-box">
+            <span class="preview-label">Fragetext:</span>
+            <span id="preview-text"></span>
+        </div>
+        <div class="preview-box">
+            <span class="preview-label">Ergänzung/Hinweis:</span>
+            <span id="preview-bem"></span>
+        </div>
+        <div class="preview-box">
+            <span class="preview-label">Nächste IDs:</span>
+            <ul style="margin: 0; padding-left: 1.2em;">
+                <li><b>Ja:</b> <span id="preview-ja"></span></li>
+                <li><b>Nein:</b> <span id="preview-nein"></span></li>
+                <li><b>Unsicher:</b> <span id="preview-unsicher"></span></li>
+            </ul>
+        </div>
+        <div class="preview-box">
+            <span class="preview-label">Startfrage:</span>
+            <span id="preview-initial"></span>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap Tooltips Activation Script & Live Preview Script -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Preview updates
+    function updatePreview() {
+        document.getElementById('preview-bez').textContent = document.getElementById('bez').value;
+        document.getElementById('preview-text').textContent = document.getElementById('text').value;
+        document.getElementById('preview-bem').textContent = document.getElementById('bem').value;
+        document.getElementById('preview-ja').textContent = document.getElementById('ja').value;
+        document.getElementById('preview-nein').textContent = document.getElementById('nein').value;
+        document.getElementById('preview-unsicher').textContent = document.getElementById('unsicher').value;
+        document.getElementById('preview-initial').textContent =
+            document.getElementById('initial').value == "1" ? "Ja" : "Nein";
+    }
+
+    // Listen to all input/textarea/select changes in the form
+    const inputs = document.querySelectorAll('#frageForm input, #frageForm textarea, #frageForm select');
+    inputs.forEach(function(input) {
+        input.addEventListener('input', updatePreview);
+        input.addEventListener('change', updatePreview);
+    });
+
+    // Initial preview state
+    updatePreview();
+
+    // Form submit
+    document.getElementById("frageForm").addEventListener("submit", function (event) {
+        event.preventDefault();
+        let formData = {
+            bez: document.getElementById("bez").value,
+            text: document.getElementById("text").value,
+            bem: document.getElementById("bem").value,
+            ja: document.getElementById("ja").value || null,
+            nein: document.getElementById("nein").value || null,
+            unsicher: document.getElementById("unsicher").value || null,
+            initial: document.getElementById("initial").value
+        };
+
+        fetch("/save_frage", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(formData)
+        })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("statusMessage").textContent = data.message;
+                document.getElementById("frageForm").reset();
+                updatePreview();
+            })
+            .catch(error => console.error("Error:", error));
+    });
+});
+</script>
+{% endblock %}

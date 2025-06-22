@@ -1,18 +1,19 @@
 {% extends 'index.html' %}
 
 {% block content %}
-<h1>Prompt löschen</h1>
+<div class="container mt-4">
+    <h1>Prompt löschen</h1>
 
-<label for="promptSelect">Prompt auswählen:</label>
-<select id="promptSelect">
-    <option value="">-- Bitte wählen --</option>
-    {% for prompt in prompts %}
-    <option value="{{ prompt.ID }}">{{ prompt.Bez }}</option>
-    {% endfor %}
-</select>
+    <label for="promptSelect">Prompt auswählen:</label>
+    <select id="promptSelect" class="form-select mb-3">
+        <option value="">-- Bitte wählen --</option>
+        {% for prompt in prompts %}
+        <option value="{{ prompt.ID }}">{{ prompt.Bez }}</option>
+        {% endfor %}
+    </select>
 
-<br><br>
-<button id="deleteBtn" disabled>Löschen</button>
+    <button id="deleteBtn" class="btn btn-primary" disabled>Löschen</button>
+</div>
 
 <script>
     const promptSelect = document.getElementById("promptSelect");

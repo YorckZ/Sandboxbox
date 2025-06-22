@@ -27,24 +27,30 @@
         </div>
         <div class="mb-3">
             <label for="ja" class="form-label">
-                Ja (nächstes Element ID):
+                Ja (nächstes Element):
                 <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="ID des nächsten Elements, falls 'Ja' gewählt wird."></i>
             </label>
-            <input type="number" class="form-control" id="ja" name="ja">
+            <select class="form-control" id="ja" name="ja">
+                <option value="">-- wählen --</option>
+            </select>
         </div>
         <div class="mb-3">
             <label for="nein" class="form-label">
-                Nein (nächstes Element ID):
+                Nein (nächstes Element):
                 <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="ID des nächsten Elements, falls 'Nein' gewählt wird."></i>
             </label>
-            <input type="number" class="form-control" id="nein" name="nein">
+            <select class="form-control" id="nein" name="nein">
+                <option value="">-- wählen --</option>
+            </select>
         </div>
         <div class="mb-3">
             <label for="unsicher" class="form-label">
-                Unsicher (nächstes Element ID):
+                Unsicher (nächstes Element):
                 <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="ID des nächsten Elements, falls 'Unsicher' gewählt wird."></i>
             </label>
-            <input type="number" class="form-control" id="unsicher" name="unsicher">
+            <select class="form-control" id="unsicher" name="unsicher">
+                <option value="">-- wählen --</option>
+            </select>
         </div>
         <div class="mb-3">
             <label for="initial" class="form-label">
@@ -61,7 +67,6 @@
     <p id="statusMessage" class="mt-2"></p>
 </div>
 
-<!-- Bootstrap Tooltips Activation Script -->
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
@@ -96,5 +101,22 @@
                 .catch(error => console.error("Error:", error));
         });
     });
+
+    function createOption(item) {
+        return `<option value="${item.ID}|${item.type}">${item.Bez} (${item.type})</option>`;
+    }
+
+    fetch("/all_bez")
+        .then(response => response.json())
+        .then(list => {
+            const selects = ["ja", "nein", "unsicher"];
+            selects.forEach(selId => {
+                const sel = document.getElementById(selId);
+                sel.innerHTML = '<option value="">-- wählen --</option>' +
+                    list.map(createOption).join('');
+            });
+        })
+        .catch(err => console.error("Fehler beim Laden der Bez-Liste:", err));
+
 </script>
 {% endblock %}
