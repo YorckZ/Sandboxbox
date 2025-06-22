@@ -3,41 +3,6 @@ import sqlite3
 # Constants:
 DB_PATH = "database/database.db"
 
-# <editor-fold desc="Logic">
-"""
-CRUD:
-======
-x Create
-x Read
-x Update
-x Delete
-======
-
-x initialize_db()
-x open_connection()
-x close_connection()
-x get_next_id()
-
-x create_element()
-x delete_element()
-
-x create_question()
-x read_question()
-x update_question()
-x delete_question()
-
-x create_answer()
-x read_answer()
-x update_answer()
-x delete_answer()
-
-x create_prompt()
-x read_prompt()
-x update_prompt()
-x delete_prompt()
-"""
-# </editor-fold>
-
 # <editor-fold desc="Fundamental Database Functions">
 def open_connection():
     try:
@@ -147,6 +112,9 @@ def create_frage(bez: str, text: str, bem: str, ja: int, nein: int, unsicher: in
         element_id: int = get_next_id()
         create_element(1, element_id)
 
+        if initial:
+            cursor.execute("UPDATE tbl_fragen SET Initial = 0 WHERE Initial = 1")
+
         cursor.execute("INSERT INTO tbl_fragen (ID, Bez, Text, Bem, Ja, Nein, unsicher, Initial) VALUES ("
                        "?, ?, ?, ?, ?, ?, ?, ?);", (element_id, bez, text, bem, ja, nein, unsicher, initial))
 
@@ -178,6 +146,10 @@ def get_frage_by_id(frage_id: int):
 def update_frage(frage_id: int, bez: str, text: str, bem: str, ja: int, nein: int, unsicher: int, initial: bool):
     """Updates an existing frage."""
     conn, cursor = open_connection()
+
+    if initial:
+        cursor.execute("UPDATE tbl_fragen SET Initial = 0 WHERE Initial = 1")
+
     cursor.execute("""
         UPDATE tbl_fragen SET Bez = ?, Text = ?, Bem = ?, Ja = ?, Nein = ?, unsicher = ?, Initial = ? WHERE ID = ?
     """, (bez, text, bem, ja, nein, unsicher, initial, frage_id))

@@ -68,7 +68,6 @@
     <button type="button" class="btn btn-primary" onclick="updateFrage()">Update</button>
 </form>
 
-
 <script>
     function loadFrage() {
         const frageId = document.getElementById("frageSelect").value;
@@ -83,8 +82,7 @@
                 document.getElementById("ja").value = data.Ja || "";
                 document.getElementById("nein").value = data.Nein || "";
                 document.getElementById("unsicher").value = data.Unsicher || "";
-                document.getElementById("initial").checked = data.Initial;
-
+                document.getElementById("initial").value = data.Initial ? "1" : "0";
                 document.getElementById("frageForm").dataset.frageId = frageId;
             })
             .catch(error => alert("Fehler beim Laden der Frage."));
@@ -97,6 +95,16 @@
             return;
         }
 
+        // Read select value (not .checked!)
+        const initialValue = document.getElementById("initial").value;
+
+        // If setting as Startfrage, confirm first
+        if (initialValue === "1") {
+            if (!confirm("Achtung: Es kann nur eine Startfrage geben. Wenn Sie fortfahren, wird diese Frage zur neuen Startfrage gesetzt und alle anderen werden zurückgesetzt. Fortfahren?")) {
+                return; // Abort update
+            }
+        }
+
         const formData = {
             id: parseInt(frageId),
             bez: document.getElementById("bez").value,
@@ -105,7 +113,7 @@
             ja: document.getElementById("ja").value || null,
             nein: document.getElementById("nein").value || null,
             unsicher: document.getElementById("unsicher").value || null,
-            initial: document.getElementById("initial").checked ? 1 : 0
+            initial: parseInt(initialValue) // 0 or 1
         };
 
         fetch('/update_frage', {
@@ -118,5 +126,4 @@
         .catch(error => alert("Fehler beim Aktualisieren der Frage."));
     }
 </script>
-
 {% endblock %}
