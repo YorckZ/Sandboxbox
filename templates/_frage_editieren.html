@@ -12,31 +12,62 @@
     {% endfor %}
 </select>
 
-
 <form id="frageForm">
-    <label for="bez">Bez:</label>
-    <input type="text" id="bez" name="bez" required><br>
-
-    <label for="text">Text:</label>
-    <textarea id="text" name="text" rows="4" required></textarea><br>
-
-    <label for="bem">Bem:</label>
-    <textarea id="bem" name="bem" rows="2"></textarea><br>
-
-    <label for="ja">Ja:</label>
-    <input type="number" id="ja" name="ja"><br>
-
-    <label for="nein">Nein:</label>
-    <input type="number" id="nein" name="nein"><br>
-
-    <label for="unsicher">Unsicher:</label>
-    <input type="number" id="unsicher" name="unsicher"><br>
-
-    <label for="initial">Initial:</label>
-    <input type="checkbox" id="initial" name="initial"><br>
-
-    <button type="button" onclick="updateFrage()">Update</button>
+    <div class="mb-3">
+        <label for="bez" class="form-label">
+            Identifikator:
+            <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Eindeutiger Kurzname für die Frage."></i>
+        </label>
+        <input type="text" class="form-control" id="bez" name="bez" required>
+    </div>
+    <div class="mb-3">
+        <label for="text" class="form-label">
+            Fragetext:
+            <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Der vollständige Text der Frage, wie sie angezeigt wird."></i>
+        </label>
+        <textarea class="form-control" id="text" name="text" rows="4" required></textarea>
+    </div>
+    <div class="mb-3">
+        <label for="bem" class="form-label">
+            Ergänzung/Hinweis/Bemerkung:
+            <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Zusätzliche Hinweise oder Hilfestellung zur Frage."></i>
+        </label>
+        <textarea class="form-control" id="bem" name="bem" rows="2"></textarea>
+    </div>
+    <div class="mb-3">
+        <label for="ja" class="form-label">
+            Ja (nächstes Element ID):
+            <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="ID des nächsten Elements, falls 'Ja' gewählt wird."></i>
+        </label>
+        <input type="number" class="form-control" id="ja" name="ja">
+    </div>
+    <div class="mb-3">
+        <label for="nein" class="form-label">
+            Nein (nächstes Element ID):
+            <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="ID des nächsten Elements, falls 'Nein' gewählt wird."></i>
+        </label>
+        <input type="number" class="form-control" id="nein" name="nein">
+    </div>
+    <div class="mb-3">
+        <label for="unsicher" class="form-label">
+            Unsicher (nächstes Element ID):
+            <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="ID des nächsten Elements, falls 'Unsicher' gewählt wird."></i>
+        </label>
+        <input type="number" class="form-control" id="unsicher" name="unsicher">
+    </div>
+    <div class="mb-3">
+        <label for="initial" class="form-label">
+            Ist dies die Startfrage?
+            <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Legt fest, ob diese Frage die erste im Entscheidungsbaum ist."></i>
+        </label>
+        <select class="form-control" id="initial" name="initial">
+            <option value="0">Nein</option>
+            <option value="1">Ja</option>
+        </select>
+    </div>
+    <button type="button" class="btn btn-primary" onclick="updateFrage()">Update</button>
 </form>
+
 
 <script>
     function loadFrage() {

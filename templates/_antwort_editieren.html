@@ -13,13 +13,21 @@
 </select>
 
 <form id="antwortForm">
-    <label for="bez">Bez:</label>
-    <input type="text" id="bez" name="bez" required><br>
-
-    <label for="text">Text:</label>
-    <textarea id="text" name="text" rows="4" required></textarea><br>
-
-    <button type="button" onclick="updateAntwort()">Update</button>
+    <div class="mb-3">
+        <label for="bez" class="form-label">
+            Identifikator:
+            <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Eindeutiger Kurzname für die Antwort."></i>
+        </label>
+        <input type="text" class="form-control" id="bez" name="bez" required>
+    </div>
+    <div class="mb-3">
+        <label for="text" class="form-label">
+            Antworttext:
+            <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Der vollständige Text der Antwort, wie sie angezeigt wird."></i>
+        </label>
+        <textarea class="form-control" id="text" name="text" rows="4" required></textarea>
+    </div>
+    <button type="button" class="btn btn-primary" onclick="updateAntwort()">Update</button>
 </form>
 
 <script>

@@ -5,29 +5,43 @@
     <h2>Prompt bearbeiten</h2>
     <form id="promptForm">
         <div class="mb-3">
-            <label for="bezDropdown" class="form-label">Wähle eine Kurzbezeichnung:</label>
+            <label for="bezDropdown" class="form-label">
+                Wähle eine Kurzbezeichnung:
+                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Vorhandene Kurzbezeichnung auswählen, um die Daten zu laden."></i>
+            </label>
             <select class="form-control" id="bezDropdown" name="bezDropdown">
                 <option value="">-- Bitte wählen --</option>
             </select>
         </div>
         <div class="mb-3">
-            <label for="bez" class="form-label">Kurzbezeichnung:</label>
+            <label for="bez" class="form-label">
+                Kurzbezeichnung:
+                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Eindeutige Kurzbezeichnung für den Prompt."></i>
+            </label>
             <input type="text" class="form-control" id="bez" name="bez" required>
         </div>
         <div class="mb-3">
-            <label for="system" class="form-label">System:</label>
+            <label for="system" class="form-label">
+                System:
+                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="System-Prompt, der das Verhalten des LLMs steuert."></i>
+            </label>
             <textarea class="form-control" id="system" name="system" required></textarea>
         </div>
         <div class="mb-3">
-            <label for="dsgvo" class="form-label">DSGVO:</label>
+            <label for="dsgvo" class="form-label">
+                DSGVO:
+                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Hinweise oder Anweisungen im Kontext des Datenschutzes (DSGVO)."></i>
+            </label>
             <textarea class="form-control" id="dsgvo" name="dsgvo"></textarea>
         </div>
         <div class="mb-3">
-            <label for="task" class="form-label">Aufgabe des LLMs:</label>
+            <label for="task" class="form-label">
+                Aufgabe des LLMs:
+                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Beschreibung der spezifischen Aufgabe für das LLM."></i>
+            </label>
             <textarea class="form-control" id="task" name="task"></textarea>
         </div>
         <button type="submit" class="btn btn-primary">Ändern</button>
-        <button id="deleteBtn" type="button" onclick="deletePrompt()">Delete</button>
     </form>
     <p id="statusMessage" class="mt-2"></p>
 </div>
@@ -72,7 +86,7 @@
             dsgvo: document.getElementById("dsgvo").value,
             task: document.getElementById("task").value
         };
-        
+
         fetch("/update_prompt", {
             method: "POST",
             headers: {
@@ -86,25 +100,6 @@
         })
         .catch(error => console.error("Fehler:", error));
     });
-    function deletePrompt() {
-        const promptId = document.getElementById("bezDropdown").value; // Correct ID
-        if (!promptId) {
-            alert("Bitte wählen Sie einen Prompt zum Löschen aus!");
-            return;
-        }
-
-        if (confirm("Möchten Sie diesen Prompt wirklich löschen?")) {
-            fetch(`/delete_prompt/${promptId}`, {
-                method: "DELETE"
-            })
-            .then(response => response.json())
-            .then(data => {
-                alert(data.message);
-                location.reload();
-            })
-            .catch(error => console.error("Fehler:", error));
-        }
-    }
 </script>
 
 {% endblock %}
