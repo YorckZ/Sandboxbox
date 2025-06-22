@@ -148,7 +148,6 @@ def delete_frage(frage_id):
 def anlegen_antwort():
     return render_template('_antwort_anlegen.html')
 
-
 @app.route('/save_antwort', methods=['POST'])
 def save_antwort():
     try:
@@ -158,15 +157,73 @@ def save_antwort():
         bez = data.get("bez", "").strip()
         text = data.get("text", "").strip()
 
-        # Call database function to insert the question
+        # Call database function to insert the answer
         db.create_antwort(bez, text)
 
-        return jsonify({"message": "Ergebnis erfolgreich gespeichert!"})
+        return jsonify({"message": "Antwort erfolgreich gespeichert!"})
 
     except ValueError:
         return jsonify({"message": "Fehler: Ungültige Eingabewerte!"}), 400
     except Exception as e:
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
+
+@app.route('/edit_antwort')
+def edit_antwort():
+    antworten = db.get_all_antworten()
+    antworten_sorted = sorted(antworten, key=lambda x: x["Bez"])
+    return render_template('_antwort_editieren.html', antworten=antworten_sorted)
+
+@app.route("/get_antworten", methods=["GET"])
+def get_antworten():
+    try:
+        antworten = db.get_all_antworten()
+        return jsonify([{"ID": row["ID"], "Bez": row["Bez"]} for row in antworten])
+    except Exception as e:
+        return jsonify({"message": f"Fehler: {str(e)}"}), 500
+
+@app.route("/get_antwort/<int:antwort_id>", methods=["GET"])
+def get_antwort(antwort_id):
+    try:
+        antwort = db.get_antwort_by_id(antwort_id)
+        if antwort:
+            return jsonify(antwort)
+        else:
+            return jsonify({"message": "Antwort nicht gefunden"}), 404
+    except Exception as e:
+        return jsonify({"message": f"Fehler: {str(e)}"}), 500
+
+@app.route("/update_antwort", methods=["POST"])
+def update_antwort():
+    try:
+        data = request.get_json()
+
+        antwort_id = data.get("id")
+        bez = data.get("bez", "").strip()
+        text = data.get("text", "").strip()
+
+        if not antwort_id or not bez or not text:
+            return jsonify({"message": "Fehlende erforderliche Felder!"}), 400
+
+        db.update_antwort(antwort_id, bez, text)
+
+        return jsonify({"message": "Antwort erfolgreich aktualisiert!"})
+    except Exception as e:
+        return jsonify({"message": f"Fehler: {str(e)}"}), 500
+
+@app.route("/loeschen_antwort")
+def delete_antwort_page():
+    antworten = db.get_all_antworten()
+    antworten_sorted = sorted(antworten, key=lambda x: x["Bez"])
+    return render_template("_antwort_loeschen.html", antworten=antworten_sorted)
+
+@app.route("/delete_antwort/<int:antwort_id>", methods=["DELETE"])
+def delete_antwort(antwort_id):
+    try:
+        db.delete_antwort(antwort_id)
+        return jsonify({"message": "Antwort erfolgreich gelöscht!"})
+    except Exception as e:
+        return jsonify({"message": f"Fehler: {str(e)}"}), 500
+
 # </editor-fold>
 
 # ===========================================================================================================
@@ -243,7 +300,6 @@ def delete_prompt(prompt_id):
         return jsonify({"message": "Prompt erfolgreich gelöscht!"})
     except Exception as e:
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
-
 
 # </editor-fold>
 
