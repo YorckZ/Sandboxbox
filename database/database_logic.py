@@ -1,4 +1,5 @@
 import sqlite3
+import json
 
 # Constants:
 DB_PATH = "database/database.db"
@@ -81,6 +82,59 @@ def get_next_id() -> int:
     except Exception as e:
         print(e)
         return -1
+
+def get_element_by_id(element_id: int):
+    """
+    Looks up the element by its ID and returns a unified dict with its type and content.
+    """
+    conn, cursor = open_connection()
+    cursor.execute("SELECT table_id, foreign_id FROM tbl_elemente WHERE ID = ?", (element_id,))
+    row = cursor.fetchone()
+    close_connection(conn)
+    if not row:
+        return None
+
+    table_id, foreign_id = row
+
+    if table_id == 1:  # Frage
+        frage = get_frage_by_id(foreign_id)
+        if frage:
+            return {
+                "type": "Frage",
+                "ID": element_id,
+                "FrageID": foreign_id,
+                "Bez": frage["Bez"],
+                "Text": frage["Text"],
+                "Bem": frage["Bem"],
+                "Ja": frage["Ja"],
+                "Nein": frage["Nein"],
+                "Unsicher": frage["unsicher"],
+                "Initial": frage["Initial"],
+            }
+    elif table_id == 2:  # Antwort
+        antwort = get_antwort_by_id(foreign_id)
+        if antwort:
+            return {
+                "type": "Antwort",
+                "ID": element_id,
+                "AntwortID": foreign_id,
+                "Bez": antwort["Bez"],
+                "Text": antwort["Text"],
+            }
+    elif table_id == 3:  # Prompt
+        prompt = get_prompt_by_id(foreign_id)
+        if prompt:
+            return {
+                "type": "Prompt",
+                "ID": element_id,
+                "PromptID": foreign_id,
+                "Bez": prompt["Bez"],
+                "System": prompt["System"],
+                "DSGVO": prompt.get("DSGVO", ""),
+                "Task": prompt.get("Task", ""),
+            }
+
+    return None
 # </editor-fold>
 
 # ===========================================================================================================
@@ -101,6 +155,79 @@ def delete_element(e_id):
     cursor.execute("DELETE FROM tbl_elemente WHERE foreign_id = ?", (e_id,))
     conn.commit()
     close_connection(conn)
+
+def save_all_tables_to_json(json_path="database_export.json"):
+    """
+    Saves all rows from all tables into a single JSON file.
+    The JSON file will be a dict where each key is the table name and the value is a list of dicts (rows).
+    """
+    try:
+        conn, cursor = open_connection()
+
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
+        tables = [row[0] for row in cursor.fetchall()]
+
+        export_data = {}
+
+        for table in tables:
+            cursor.execute(f"PRAGMA table_info({table})")
+            columns = [col[1] for col in cursor.fetchall()]
+            cursor.execute(f"SELECT * FROM {table}")
+            rows = cursor.fetchall()
+            export_data[table] = [
+                dict(zip(columns, row)) for row in rows
+            ]
+
+        with open(json_path, "w", encoding="utf-8") as f:
+            json_str = json.dumps(export_data, ensure_ascii=False, indent=4)
+            f.write(json_str)
+
+        close_connection(conn)
+        print(f"All tables have been exported to {json_path}")
+    except Exception as e:
+        print(f"Error exporting tables to JSON: {e}")
+
+def import_all_tables_from_json(json_path="database_export.json"):
+    """
+    Imports all rows from a JSON file into their corresponding tables.
+    WARNING: This will DELETE existing rows in those tables!
+    """
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            import_data = json.load(f)
+
+        conn, cursor = open_connection()
+
+        for table, rows in import_data.items():
+            print(f"Importing table: {table} ({len(rows)} rows)")
+
+            # Delete existing data in this table
+            cursor.execute(f"DELETE * FROM {table}")
+
+            if not rows:
+                continue
+
+            # Determine columns from the first row
+            columns = list(rows[0].keys())
+            col_str = ', '.join(columns)
+            placeholders = ', '.join(['?'] * len(columns))
+
+            for row in rows:
+                # Check for missing or extra keys
+                if set(row.keys()) != set(columns):
+                    print(f"Warning: Row keys in {table} do not match the first row. This row will be skipped: {row}")
+                    continue
+                values = [row[col] for col in columns]
+                cursor.execute(
+                    f"INSERT INTO {table} ({col_str}) VALUES ({placeholders})",
+                    values
+                )
+
+        conn.commit()
+        close_connection(conn)
+        print("All tables have been imported from", json_path)
+    except Exception as e:
+        print(f"Error importing tables from JSON: {e}")
 
 # ===========================================================================================================
 
@@ -484,3 +611,7 @@ if __name__ == '__main__':
     # admin_print_tbl_antworten()
     # admin_print_tbl_prompts()
     # admin_print_tbl_elemente()
+
+    # print(get_element_by_id(1))
+    # print(get_element_by_id(4))
+    # print(get_element_by_id(2))

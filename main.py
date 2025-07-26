@@ -45,6 +45,37 @@ def new():
     # Self-Assessment Tool Page (new style)
     return render_template('new.html')
 
+@app.route('/next_element', methods=['POST'])
+def next_element():
+    try:
+        data = request.get_json()
+        frage_id = data.get('frage_id')
+        antwort = data.get('antwort')  # 'ja', 'nein', 'unsicher'
+
+        # Get current question info
+        frage = db.get_frage_by_id(frage_id)
+        if not frage:
+            return jsonify({"error": "Frage nicht gefunden"}), 404
+
+        # Determine the next element's ID based on the user's answer
+        next_id = frage.get(antwort.capitalize())  # 'Ja', 'Nein', 'Unsicher' as column names
+
+        if not next_id:
+            # return jsonify({"done": True})  # End, or Absage/Zusage if you want
+            return jsonify({"done": True, "message": "Keine weitere Frage. Fragebogen ist beendet."})
+
+        # Now check: what type of element is next_id? (Frage, Antwort, Prompt)
+        # Let's say you have a function like this:
+        next_e = db.get_element_by_id(next_id)
+        if not next_e:
+            return jsonify({"error": "Element nicht gefunden"}), 404
+
+        # next_element could contain the type (Frage, Antwort, Prompt) and relevant content
+        return jsonify(next_e)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # ===========================================================================================================
 
 # <editor-fold desc="Fragen">
