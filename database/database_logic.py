@@ -270,6 +270,25 @@ def get_frage_by_id(frage_id: int):
         return {"Bez": frage[0], "Text": frage[1], "Bem": frage[2], "Ja": frage[3], "Nein": frage[4], "unsicher": frage[5], "Initial": frage[6]}
     return None
 
+def get_initial_frage():
+    conn, cursor = open_connection()
+    cursor.execute("SELECT ID FROM tbl_fragen WHERE Initial = 1")
+    row = cursor.fetchone()
+    close_connection(conn)
+    if not row:
+        return None
+
+    frage_id = row[0]
+    # Find the element with table_id=1 (Frage), foreign_id=frage_id
+    conn, cursor = open_connection()
+    cursor.execute("SELECT ID FROM tbl_elemente WHERE table_id = 1 AND foreign_id = ?", (frage_id,))
+    row = cursor.fetchone()
+    close_connection(conn)
+    if not row:
+        return None
+    element_id = row[0]
+    return get_element_by_id(element_id)
+
 def update_frage(frage_id: int, bez: str, text: str, bem: str, ja: int, nein: int, unsicher: int, initial: bool):
     """Updates an existing frage."""
     conn, cursor = open_connection()

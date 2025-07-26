@@ -93,9 +93,18 @@ def save_frage():
         bez = data.get("bez", "").strip()
         text = data.get("text", "").strip()
         bem = data.get("bem", "").strip() if data.get("bem") else None
-        ja = int(data["ja"]) if data.get("ja") else None
-        nein = int(data["nein"]) if data.get("nein") else None
-        unsicher = int(data["unsicher"]) if data.get("unsicher") else None
+        try:
+            ja = int(data["ja"]) if data.get("ja") else None
+        except Exception:
+            ja = None
+        try:
+            nein = int(data["nein"]) if data.get("nein") else None
+        except Exception:
+            nein = None
+        try:
+            unsicher = int(data["unsicher"]) if data.get("unsicher") else None
+        except Exception:
+            unsicher = None
         initial = bool(int(data.get("initial", 0)))  # Convert "0"/"1" to boolean
 
         # Call database function to insert the question
@@ -188,6 +197,13 @@ def delete_frage(frage_id):
         return jsonify({"message": "Frage erfolgreich gelöscht!"})
     except Exception as e:
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
+
+@app.route("/get_initial_frage", methods=["GET"])
+def get_initial_frage_route():
+    frage = db.get_initial_frage()
+    if frage:
+        return jsonify(frage)
+    return jsonify({"error": "Keine Initialfrage gefunden."}), 404
 
 # </editor-fold>
 

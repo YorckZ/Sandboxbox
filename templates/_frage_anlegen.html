@@ -1,73 +1,6 @@
 {% extends "index.html" %}
 
 {% block content %}
-<!--<div class="container mt-4">-->
-<!--    <h2>Neue Frage hinzufügen</h2>-->
-<!--    <form id="frageForm">-->
-<!--        <div class="mb-3">-->
-<!--            <label for="bez" class="form-label">-->
-<!--                Identifikator:-->
-<!--                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Eindeutiger Kurzname für die Frage."></i>-->
-<!--            </label>-->
-<!--            <input type="text" class="form-control" id="bez" name="bez" required>-->
-<!--        </div>-->
-<!--        <div class="mb-3">-->
-<!--            <label for="text" class="form-label">-->
-<!--                Fragetext:-->
-<!--                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Der vollständige Text der Frage, wie sie angezeigt wird."></i>-->
-<!--            </label>-->
-<!--            <textarea class="form-control" id="text" name="text" required></textarea>-->
-<!--        </div>-->
-<!--        <div class="mb-3">-->
-<!--            <label for="bem" class="form-label">-->
-<!--                Ergänzung/Hinweis/Bemerkung:-->
-<!--                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Zusätzliche Hinweise oder Hilfestellung zur Frage."></i>-->
-<!--            </label>-->
-<!--            <textarea class="form-control" id="bem" name="bem"></textarea>-->
-<!--        </div>-->
-<!--        <div class="mb-3">-->
-<!--            <label for="ja" class="form-label">-->
-<!--                Ja (nächstes Element):-->
-<!--                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="ID des nächsten Elements, falls 'Ja' gewählt wird."></i>-->
-<!--            </label>-->
-<!--            <select class="form-control" id="ja" name="ja">-->
-<!--                <option value="">&#45;&#45; wählen &#45;&#45;</option>-->
-<!--            </select>-->
-<!--        </div>-->
-<!--        <div class="mb-3">-->
-<!--            <label for="nein" class="form-label">-->
-<!--                Nein (nächstes Element):-->
-<!--                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="ID des nächsten Elements, falls 'Nein' gewählt wird."></i>-->
-<!--            </label>-->
-<!--            <select class="form-control" id="nein" name="nein">-->
-<!--                <option value="">&#45;&#45; wählen &#45;&#45;</option>-->
-<!--            </select>-->
-<!--        </div>-->
-<!--        <div class="mb-3">-->
-<!--            <label for="unsicher" class="form-label">-->
-<!--                Unsicher (nächstes Element):-->
-<!--                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="ID des nächsten Elements, falls 'Unsicher' gewählt wird."></i>-->
-<!--            </label>-->
-<!--            <select class="form-control" id="unsicher" name="unsicher">-->
-<!--                <option value="">&#45;&#45; wählen &#45;&#45;</option>-->
-<!--            </select>-->
-<!--        </div>-->
-<!--        <div class="mb-3">-->
-<!--            <label for="initial" class="form-label">-->
-<!--                Ist dies die Startfrage?-->
-<!--                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Legt fest, ob diese Frage die erste im Entscheidungsbaum ist."></i>-->
-<!--            </label>-->
-<!--            <select class="form-control" id="initial" name="initial">-->
-<!--                <option value="0">Nein</option>-->
-<!--                <option value="1">Ja</option>-->
-<!--            </select>-->
-<!--        </div>-->
-<!--        <button type="submit" class="btn btn-primary">Speichern</button>-->
-<!--    </form>-->
-<!--    <p id="statusMessage" class="mt-2"></p>-->
-<!--</div>-->
-
-
 <div class="container mt-5 mb-5">
     <div class="card shadow rounded-4 border-0">
         <div class="card-body p-4">
@@ -165,7 +98,6 @@
     </div>
 </div>
 
-
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
@@ -202,7 +134,8 @@
     });
 
     function createOption(item) {
-        return `<option value="${item.ID}|${item.type}">${item.Bez} (${item.type})</option>`;
+        // return `<option value="${item.ID}|${item.type}">${item.Bez} (${item.type})</option>`;
+        return `<option value="${item.ID}">${item.Bez} (${item.type})</option>`;
     }
 
     fetch("/all_bez")

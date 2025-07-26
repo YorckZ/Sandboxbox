@@ -1,16 +1,137 @@
 {% extends 'index.html' %}
 
 {% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
-<!--<!DOCTYPE html>-->
-<html>
-<head>
-    <title>Self-Assessment Tool: A Guided Questionnaire</title>
-</head>
-<body>
-<div id="questionnaireContainer" style="margin:2em;"></div>
-<script src="{{ url_for('static', filename='dynamic_new.js') }}"></script>
-</body>
-</html>
+<div class="container my-5">
+    <div id="frage-history"></div>
+</div>
 
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+    let flowIndex = 0;
+
+    function renderElement(element, idx) {
+        if (!element) return;
+
+        let html = "";
+
+        if (element.type === "Frage") {
+            html = `
+            <div class="card shadow rounded-4 border-0 mb-4 frage-block" data-flow-index="${idx}">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-question-circle text-primary me-2 fs-2"></i>
+                        <h5 class="mb-0 text-primary">${element.Bez}</h5>
+                    </div>
+                    <p class="fs-5 mb-4">${element.Text}</p>
+                    ${element.Bem ? `<p class="fst-italic text-muted mb-3">${element.Bem}</p>` : ""}
+                    <div class="row align-items-end mb-2">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="antwort-dropdown-${idx}">Ihre Antwort</label>
+                            <select class="form-select antwort-dropdown" id="antwort-dropdown-${idx}" data-id="${element.ID}">
+                                <option value="">---</option>
+                                <option value="ja">Ja</option>
+                                <option value="nein">Nein</option>
+                                <option value="unsicher">Unsicher</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        } else if (element.type === "Antwort" || element.type === "Prompt") {
+            html = `
+            <div class="card shadow rounded-4 border-0 mb-4 antwort-block" data-flow-index="${idx}">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-chat-left-quote text-success me-2 fs-2"></i>
+                        <h5 class="mb-0 text-success">${element.Bez}</h5>
+                    </div>
+                    <p class="fs-5 mb-4">${element.Text || element.System}</p>
+                    ${element.DSGVO ? `<p class="fst-italic text-muted mb-3">${element.DSGVO}</p>` : ""}
+                    ${element.Task ? `<div class="mb-3"><span class="fw-semibold">Aufgabe: </span>${element.Task}</div>` : ""}
+                    <button id="restart-btn" class="btn btn-outline-primary rounded-3">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Nochmal starten
+                    </button>
+                </div>
+            </div>`;
+        }
+
+        $('#frage-history').append(html);
+        $('html, body').animate({ scrollTop: $(document).height() }, 400);
+    }
+
+    function loadInitialFrage() {
+        $.get('/get_initial_frage', function(data) {
+            $('#frage-history').empty();
+            renderElement(data, 0);
+            flowIndex = 1;
+        }).fail(function(xhr) {
+            $('#frage-history').append('<div class="alert alert-danger">Fehler beim Laden der Initialfrage.</div>');
+            console.error("Fehler beim Laden der Initialfrage:", xhr);
+        });
+    }
+
+    $('#frage-history').on('change', '.antwort-dropdown', function() {
+        let antwort = $(this).val();
+        let currentElementId = $(this).data('id');
+        let parentDiv = $(this).closest('[data-flow-index]');
+        let idx = parseInt(parentDiv.attr('data-flow-index'), 10);
+
+        // Always remove all blocks after this one
+        $(`[data-flow-index]`).filter(function(){
+            return parseInt($(this).attr('data-flow-index'), 10) > idx;
+        }).remove();
+
+        if (!antwort) {
+            // If default '---', do NOT fetch next element, just prune
+            return;
+        }
+
+        flowIndex = idx + 1;
+
+        $.ajax({
+            url: '/next_element',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                frage_id: currentElementId,
+                antwort: antwort
+            }),
+            success: function(data) {
+                if (data.done) {
+                    $('#frage-history').append(`
+                    <div class="card shadow rounded-4 border-0 mb-4" data-flow-index="${flowIndex}">
+                        <div class="card-body p-4">
+                            <div class="alert alert-success mb-3">
+                                <i class="bi bi-check-circle me-2"></i>${data.message || "Fragebogen beendet."}
+                            </div>
+                            <button id="restart-btn" class="btn btn-outline-primary rounded-3">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Nochmal starten
+                            </button>
+                        </div>
+                    </div>`);
+                } else {
+                    renderElement(data, flowIndex);
+                    flowIndex += 1;
+                }
+            },
+            error: function(xhr) {
+                $('#frage-history').append('<div class="alert alert-danger">Fehler beim Laden des nächsten Elements.</div>');
+                console.error("Fehler beim Laden des nächsten Elements:", xhr);
+            }
+        });
+    });
+
+    $('#frage-history').on('click', '#restart-btn', function() {
+        $('#frage-history').empty();
+        flowIndex = 0;
+        loadInitialFrage();
+    });
+
+    $(document).ready(function() {
+        loadInitialFrage();
+    });
+</script>
 {% endblock %}
