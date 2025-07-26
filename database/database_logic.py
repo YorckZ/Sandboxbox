@@ -202,7 +202,7 @@ def import_all_tables_from_json(json_path="database_export.json"):
             print(f"Importing table: {table} ({len(rows)} rows)")
 
             # Delete existing data in this table
-            cursor.execute(f"DELETE * FROM {table}")
+            cursor.execute(f"DELETE FROM {table}")
 
             if not rows:
                 continue
@@ -608,9 +608,9 @@ def admin_print_all_tables():
 
 if __name__ == '__main__':
     DB_PATH = "database.db"
+    init_db()
     # admin_nuke_database()
     # admin_clean_all()
-    init_db()
     # admin_print_all_tables()
     #
     # insert_into_tbl_fragen("Frage1", "Frage1", "Frage1", 1, 2, 3, False)
@@ -634,3 +634,6 @@ if __name__ == '__main__':
     # print(get_element_by_id(1))
     # print(get_element_by_id(4))
     # print(get_element_by_id(2))
+
+    # save_all_tables_to_json()
+    # import_all_tables_from_json()

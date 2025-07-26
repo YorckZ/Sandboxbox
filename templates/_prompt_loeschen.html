@@ -1,19 +1,6 @@
 {% extends 'index.html' %}
 
 {% block content %}
-<!--<div class="container mt-4">-->
-<!--    <h1>Prompt löschen</h1>-->
-
-<!--    <label for="promptSelect">Prompt auswählen:</label>-->
-<!--    <select id="promptSelect" class="form-select mb-3">-->
-<!--        <option value="">&#45;&#45; Bitte wählen &#45;&#45;</option>-->
-<!--        {% for prompt in prompts %}-->
-<!--        <option value="{{ prompt.ID }}">{{ prompt.Bez }}</option>-->
-<!--        {% endfor %}-->
-<!--    </select>-->
-
-<!--    <button id="deleteBtn" class="btn btn-primary" disabled>Löschen</button>-->
-<!--</div>-->
 
 <div class="container mt-5 mb-5">
     <div class="card shadow rounded-4 border-0">
@@ -43,7 +30,6 @@
         </div>
     </div>
 </div>
-
 
 <script>
     const promptSelect = document.getElementById("promptSelect");

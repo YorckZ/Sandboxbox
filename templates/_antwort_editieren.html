@@ -2,34 +2,6 @@
 
 {% block content %}
 
-<!--<h1>Edit Antwort</h1>-->
-
-<!--<label for="antwortSelect">Select Antwort:</label>-->
-<!--<select id="antwortSelect" onchange="loadAntwort()">-->
-<!--    <option value="">&#45;&#45; Select &#45;&#45;</option>-->
-<!--    {% for antwort in antworten %}-->
-<!--        <option value="{{ antwort.ID }}">{{ antwort.Bez }}</option>-->
-<!--    {% endfor %}-->
-<!--</select>-->
-
-<!--<form id="antwortForm">-->
-<!--    <div class="mb-3">-->
-<!--        <label for="bez" class="form-label">-->
-<!--            Identifikator:-->
-<!--            <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Eindeutiger Kurzname für die Antwort."></i>-->
-<!--        </label>-->
-<!--        <input type="text" class="form-control" id="bez" name="bez" required>-->
-<!--    </div>-->
-<!--    <div class="mb-3">-->
-<!--        <label for="text" class="form-label">-->
-<!--            Antworttext:-->
-<!--            <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Der vollständige Text der Antwort, wie sie angezeigt wird."></i>-->
-<!--        </label>-->
-<!--        <textarea class="form-control" id="text" name="text" rows="4" required></textarea>-->
-<!--    </div>-->
-<!--    <button type="button" class="btn btn-primary" onclick="updateAntwort()">Update</button>-->
-<!--</form>-->
-
 <div class="container mt-5 mb-5">
     <div class="card shadow rounded-4 border-0">
         <div class="card-body p-4">
@@ -80,7 +52,6 @@
         </div>
     </div>
 </div>
-
 
 <script>
     function loadAntwort() {
