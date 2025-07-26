@@ -1,27 +1,67 @@
 {% extends "index.html" %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2>Neue Antwort hinzufügen</h2>
-    <form id="antwortForm">
-        <div class="mb-3">
-            <label for="bez" class="form-label">
-                Identifikator:
-                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Eindeutiger Kurzname für die Antwort."></i>
-            </label>
-            <input type="text" class="form-control" id="bez" name="bez" required>
+<!--<div class="container mt-4">-->
+<!--    <h2>Neue Antwort hinzufügen</h2>-->
+<!--    <form id="antwortForm">-->
+<!--        <div class="mb-3">-->
+<!--            <label for="bez" class="form-label">-->
+<!--                Identifikator:-->
+<!--                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Eindeutiger Kurzname für die Antwort."></i>-->
+<!--            </label>-->
+<!--            <input type="text" class="form-control" id="bez" name="bez" required>-->
+<!--        </div>-->
+<!--        <div class="mb-3">-->
+<!--            <label for="text" class="form-label">-->
+<!--                Antworttext:-->
+<!--                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Der vollständige Text, der als Antwort angezeigt wird."></i>-->
+<!--            </label>-->
+<!--            <textarea class="form-control" id="text" name="text" required></textarea>-->
+<!--        </div>-->
+<!--        <button type="submit" class="btn btn-primary">Speichern</button>-->
+<!--    </form>-->
+<!--    <p id="statusMessage" class="mt-2"></p>-->
+<!--</div>-->
+
+
+<div class="container mt-5 mb-5">
+    <div class="card shadow rounded-4 border-0">
+        <div class="card-body p-4">
+            <h2 class="mb-4 text-primary">
+                <i class="bi bi-plus-circle me-2"></i>Neue Antwort hinzufügen
+            </h2>
+
+            <form id="antwortForm" autocomplete="off">
+                <div class="mb-3">
+                    <label for="bez" class="form-label">
+                        Identifikator
+                        <i class="bi bi-info-circle-fill ms-2 text-info"
+                           data-bs-toggle="tooltip"
+                           title="Ein kurzer, eindeutiger Name (z.B. AN01), der diese Antwort im System identifiziert."></i>
+                    </label>
+                    <input type="text" class="form-control rounded-3" id="bez" name="bez" required placeholder="z.B. AN01">
+                </div>
+
+                <div class="mb-4">
+                    <label for="text" class="form-label">
+                        Antworttext
+                        <i class="bi bi-info-circle-fill ms-2 text-info"
+                           data-bs-toggle="tooltip"
+                           title="Formulieren Sie hier die Antwort, wie sie den Nutzern angezeigt werden soll."></i>
+                    </label>
+                    <textarea class="form-control rounded-3" id="text" name="text" rows="3" required placeholder="Geben Sie die vollständige Antwort ein..."></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary px-4 rounded-3 shadow-sm">
+                    <i class="bi bi-save me-1"></i>Speichern
+                </button>
+            </form>
+
+            <p id="statusMessage" class="mt-3"></p>
         </div>
-        <div class="mb-3">
-            <label for="text" class="form-label">
-                Antworttext:
-                <i class="bi bi-info-circle-fill ms-2 text-info" data-bs-toggle="tooltip" title="Der vollständige Text, der als Antwort angezeigt wird."></i>
-            </label>
-            <textarea class="form-control" id="text" name="text" required></textarea>
-        </div>
-        <button type="submit" class="btn btn-primary">Speichern</button>
-    </form>
-    <p id="statusMessage" class="mt-2"></p>
+    </div>
 </div>
+
 
 <!-- Bootstrap Tooltips Activation Script -->
 <script>
