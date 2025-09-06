@@ -41,17 +41,38 @@
                 </div>
             </div>`;
         } else if (element.type === "Antwort" || element.type === "Prompt") {
+            // For Prompt, show context inputs + call button
+            const promptExtras = element.type === "Prompt" ? `
+                <div class="mb-3">
+                    <label class="form-label">Ihre Angaben</label>
+                    <textarea class="form-control" id="user-input-${idx}" rows="3" placeholder="Eigene Angaben / Kontext …"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Dokumententext (optional)</label>
+                    <textarea class="form-control" id="doc-text-${idx}" rows="3" placeholder="Relevante Textauszüge …"></textarea>
+                </div>
+                <div class="mb-3">
+                    <button class="btn btn-primary run-llm-btn"
+                            data-prompt-id="${element.PromptID || element.ID}"
+                            data-idx="${idx}">
+                        <i class="bi bi-stars me-1"></i>Empfehlung anfordern
+                    </button>
+                </div>
+                <div id="llm-result-${idx}" class="border rounded p-3" style="display:none;"></div>
+            ` : "";
+
             html = `
             <div class="card shadow rounded-4 border-0 mb-4 antwort-block" data-flow-index="${idx}">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center mb-2">
-                        <i class="bi bi-chat-left-quote text-success me-2 fs-2"></i>
-                        <h5 class="mb-0 text-success">${element.Bez}</h5>
+                        <i class="bi bi-chat-left-quote text-${element.type === "Prompt" ? "warning" : "success"} me-2 fs-2"></i>
+                        <h5 class="mb-0 text-${element.type === "Prompt" ? "warning" : "success"}">${element.Bez}</h5>
                     </div>
-                    <p class="fs-5 mb-4">${element.Text || element.System}</p>
+                    <p class="fs-5 mb-4">${element.Text || element.System || ""}</p>
                     ${element.DSGVO ? `<p class="fst-italic text-muted mb-3">${element.DSGVO}</p>` : ""}
                     ${element.Task ? `<div class="mb-3"><span class="fw-semibold">Aufgabe: </span>${element.Task}</div>` : ""}
-                    <button id="restart-btn" class="btn btn-outline-primary rounded-3">
+                    ${promptExtras}
+                    <button id="restart-btn" class="btn btn-outline-primary rounded-3 mt-2">
                         <i class="bi bi-arrow-clockwise me-1"></i>Nochmal starten
                     </button>
                 </div>
@@ -79,15 +100,12 @@
         let parentDiv = $(this).closest('[data-flow-index]');
         let idx = parseInt(parentDiv.attr('data-flow-index'), 10);
 
-        // Always remove all blocks after this one
-        $(`[data-flow-index]`).filter(function(){
+        // Remove all blocks after this one
+        $('[data-flow-index]').filter(function(){
             return parseInt($(this).attr('data-flow-index'), 10) > idx;
         }).remove();
 
-        if (!antwort) {
-            // If default '---', do NOT fetch next element, just prune
-            return;
-        }
+        if (!antwort) return;
 
         flowIndex = idx + 1;
 
@@ -120,6 +138,36 @@
             error: function(xhr) {
                 $('#frage-history').append('<div class="alert alert-danger">Fehler beim Laden des nächsten Elements.</div>');
                 console.error("Fehler beim Laden des nächsten Elements:", xhr);
+            }
+        });
+    });
+
+    // NEW: handle "Empfehlung anfordern" for Prompt
+    $('#frage-history').on('click', '.run-llm-btn', function() {
+        const idx = $(this).data('idx');
+        const promptId = $(this).data('prompt-id');
+        const userInput = $(`#user-input-${idx}`).val() || "";
+        const docText = $(`#doc-text-${idx}`).val() || "";
+
+        const $result = $(`#llm-result-${idx}`);
+        $result.hide().text('');
+
+        $.ajax({
+            url: '/run_prompt',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                prompt_id: promptId,
+                user_input: userInput,
+                document_text: docText
+            }),
+            success: function(data) {
+                const promptPreview = data.prompt ? `<div class="mb-2"><strong>Prompt (Vorschau):</strong><br><pre class="mb-0" style="white-space:pre-wrap;">${data.prompt}</pre></div>` : '';
+                const llmResult = data.result ? `<div><strong>Antwort:</strong><br>${data.result}</div>` : '';
+                $result.html(promptPreview + llmResult).show();
+            },
+            error: function(xhr) {
+                $result.text('Fehler beim Ausführen des Prompts.').show();
             }
         });
     });

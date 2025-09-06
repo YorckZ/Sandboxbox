@@ -120,36 +120,38 @@
 
             fetch("/save_frage", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData)
             })
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById("statusMessage").textContent = data.message;
-                    document.getElementById("frageForm").reset();
-                })
-                .catch(error => console.error("Error:", error));
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("statusMessage").textContent = data.message;
+                document.getElementById("frageForm").reset();
+            })
+            .catch(error => console.error("Error:", error));
         });
     });
 
     function createOption(item) {
-        // return `<option value="${item.ID}|${item.type}">${item.Bez} (${item.type})</option>`;
         return `<option value="${item.ID}">${item.Bez} (${item.type})</option>`;
     }
 
     fetch("/all_bez")
         .then(response => response.json())
         .then(list => {
-            const selects = ["ja", "nein", "unsicher"];
-            selects.forEach(selId => {
-                const sel = document.getElementById(selId);
-                sel.innerHTML = '<option value="">-- wählen --</option>' +
-                    list.map(createOption).join('');
-            });
+            // Filtered lists
+            const allowedYesNo = list.filter(it => it.type === "Frage" || it.type === "Antwort");
+            const allowedUnsicher = list.filter(it => it.type === "Prompt");
+
+            // Populate selects
+            const jaSel = document.getElementById("ja");
+            const neinSel = document.getElementById("nein");
+            const unsicherSel = document.getElementById("unsicher");
+
+            jaSel.innerHTML = '<option value="">-- wählen --</option>' + allowedYesNo.map(createOption).join('');
+            neinSel.innerHTML = '<option value="">-- wählen --</option>' + allowedYesNo.map(createOption).join('');
+            unsicherSel.innerHTML = '<option value="">-- wählen --</option>' + allowedUnsicher.map(createOption).join('');
         })
         .catch(err => console.error("Fehler beim Laden der Bez-Liste:", err));
-
 </script>
 {% endblock %}

@@ -3,129 +3,216 @@
 {% block content %}
 
 <div class="container mt-5 mb-5">
-    <div class="card shadow rounded-4 border-0">
-        <div class="card-body p-4">
-            <h2 class="mb-4 text-primary">
-                <i class="bi bi-pencil-square me-2"></i>Prompt bearbeiten
-            </h2>
+  <div class="card shadow rounded-4 border-0">
+    <div class="card-body p-4">
+      <h2 class="mb-4 text-primary">
+        <i class="bi bi-pencil-square me-2"></i>Prompt bearbeiten
+      </h2>
 
-            <form id="promptForm" autocomplete="off">
-                <div class="mb-4">
-                    <label for="bezDropdown" class="form-label">
-                        Wähle eine Kurzbezeichnung
-                        <i class="bi bi-info-circle-fill ms-2 text-info"
-                           data-bs-toggle="tooltip"
-                           title="Vorhandene Kurzbezeichnung auswählen, um die Daten zu laden."></i>
-                    </label>
-                    <select class="form-select rounded-3 w-auto d-inline-block" id="bezDropdown" name="bezDropdown">
-                        <option value="">-- Bitte wählen --</option>
-                    </select>
-                </div>
-
-                <div class="mb-3">
-                    <label for="bez" class="form-label">
-                        Kurzbezeichnung
-                        <i class="bi bi-info-circle-fill ms-2 text-info"
-                           data-bs-toggle="tooltip"
-                           title="Eindeutige Kurzbezeichnung für den Prompt."></i>
-                    </label>
-                    <input type="text" class="form-control rounded-3" id="bez" name="bez" required placeholder="z.B. PR02">
-                </div>
-
-                <div class="mb-3">
-                    <label for="system" class="form-label">
-                        System
-                        <i class="bi bi-info-circle-fill ms-2 text-info"
-                           data-bs-toggle="tooltip"
-                           title="System-Prompt, der das Verhalten des LLMs steuert (z. B. Rollenbeschreibung, Stilvorgabe)."></i>
-                    </label>
-                    <textarea class="form-control rounded-3" id="system" name="system" rows="3" required placeholder="z.B. Du bist ein hilfsbereiter Assistent..."></textarea>
-                </div>
-
-                <div class="mb-3">
-                    <label for="dsgvo" class="form-label">
-                        DSGVO
-                        <i class="bi bi-info-circle-fill ms-2 text-info"
-                           data-bs-toggle="tooltip"
-                           title="Hinweise oder Anweisungen im Kontext des Datenschutzes (optional)."></i>
-                    </label>
-                    <textarea class="form-control rounded-3" id="dsgvo" name="dsgvo" rows="2" placeholder="z.B. Keine personenbezogenen Daten verwenden..."></textarea>
-                </div>
-
-                <div class="mb-4">
-                    <label for="task" class="form-label">
-                        Aufgabe des LLMs
-                        <i class="bi bi-info-circle-fill ms-2 text-info"
-                           data-bs-toggle="tooltip"
-                           title="Beschreibung der spezifischen Aufgabe für das LLM (optional)."></i>
-                    </label>
-                    <textarea class="form-control rounded-3" id="task" name="task" rows="2" placeholder="z.B. Generierung von Produktbeschreibungen..."></textarea>
-                </div>
-
-                <button type="submit" class="btn btn-primary px-4 rounded-3 shadow-sm">
-                    <i class="bi bi-arrow-repeat me-1"></i>Ändern
-                </button>
-            </form>
-
-            <p id="statusMessage" class="mt-3"></p>
+      <form id="promptForm" autocomplete="off">
+        <!-- Auswahl des zu bearbeitenden Prompts -->
+        <div class="mb-4">
+          <label for="bezDropdown" class="form-label">
+            Wähle eine Kurzbezeichnung
+            <i class="bi bi-info-circle-fill ms-2 text-info"
+               data-bs-toggle="tooltip"
+               title="Vorhandene Kurzbezeichnung auswählen, um die Daten zu laden."></i>
+          </label>
+          <select class="form-select rounded-3 w-auto d-inline-block" id="bezDropdown" name="bezDropdown">
+            <option value="">-- Bitte wählen --</option>
+          </select>
         </div>
+
+        <!-- Kurzbezeichnung (bleibt fett) -->
+        <div class="mb-3">
+          <label for="bez" class="form-label">
+            Kurzbezeichnung
+            <i class="bi bi-info-circle-fill ms-2 text-info"
+               data-bs-toggle="tooltip"
+               title="Eindeutige Kurzbezeichnung für den Prompt."></i>
+          </label>
+          <input type="text" class="form-control rounded-3" id="bez" name="bez" required>
+        </div>
+
+        <!-- Label A (nicht fett) -->
+        <div class="mb-2">
+          <label class="form-label mb-0" style="font-weight: normal;">
+            Du bist Experte für Datenschutz und sollst eine Empfehlung aussprechen.
+            Dem Benutzer wurde folgende Frage gestellt:
+          </label>
+        </div>
+
+        <!-- Dropdown für Frage (zeigt 'bez: text') -->
+        <div class="mb-3">
+          <select class="form-select rounded-3" id="frageDropdown" name="frageDropdown">
+            <option value="">-- Bitte wählen --</option>
+          </select>
+        </div>
+
+        <!-- Label B (nicht fett) -->
+        <div class="mb-2">
+          <label class="form-label mb-0" style="font-weight: normal;">
+            Der Nutzer ist sich nicht sicher. Der entsprechende Rechtstext lautet:
+          </label>
+        </div>
+
+        <!-- DSGVO-Text -->
+        <div class="mb-4">
+          <label for="dsgvo" class="form-label mb-1" style="font-weight: normal;"></label>
+          <textarea class="form-control rounded-3" id="dsgvo" name="dsgvo" rows="5"
+                    placeholder="Bitte Artikel der DSGVO im Wortlaut eintragen."></textarea>
+        </div>
+
+        <!-- D / E / F (nur Labels, nicht fett) -->
+        <div class="mb-2">
+          <label class="form-label mb-0" style="font-weight: normal;">Er hat hierzu folgendes angegeben: {Angaben_des_Users}.</label>
+        </div>
+        <div class="mb-2">
+          <label class="form-label mb-0" style="font-weight: normal;">
+            (Optional:)<br>
+            Weiterhin hat er folgende Dokumenteninhalte bereitgestellt: {document_text}.
+          </label>
+        </div>
+        <div class="mb-4">
+          <label class="form-label mb-0" style="font-weight: normal;">
+            Gib eine Empfehlung, ob die DSGVO zutrifft. Antworte zunächst nur mit Ja oder Nein. Anschließend begründe
+            Deine Einschätzung. Zuletzt weise darauf hin, dass Du nur eine KI bist und dass dies keine Rechtsberatung darstellt.
+          </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary px-4 rounded-3 shadow-sm">
+          <i class="bi bi-arrow-repeat me-1"></i>Ändern
+        </button>
+      </form>
+
+      <p id="statusMessage" class="mt-3"></p>
     </div>
+  </div>
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        fetch("/get_prompts")
-            .then(response => response.json())
-            .then(data => {
-                let dropdown = document.getElementById("bezDropdown");
-                data.forEach(prompt => {
-                    let option = document.createElement("option");
-                    option.value = prompt.ID;
-                    option.textContent = prompt.Bez;
-                    dropdown.appendChild(option);
-                });
-            })
-            .catch(error => console.error("Fehler beim Laden der Prompts:", error));
+  // Helpers
+  function fillPromptDropdown() {
+    const dd = document.getElementById("bezDropdown");
+    return fetch("/get_prompts")
+      .then(r => r.json())
+      .then(list => {
+        // sort by Bez (case-insensitive)
+        list.sort((a,b) => a.Bez.toLowerCase().localeCompare(b.Bez.toLowerCase()));
+        dd.innerHTML = '<option value="">-- Bitte wählen --</option>';
+        list.forEach(p => {
+          const opt = document.createElement("option");
+          opt.value = p.ID;
+          opt.textContent = p.Bez;
+          dd.appendChild(opt);
+        });
+      });
+  }
+
+  let fragenLoaded = false;
+  function fillFragenDropdown(selectedDisplay) {
+    const sel = document.getElementById("frageDropdown");
+    return fetch("/fragen_dropdown")
+      .then(r => r.json())
+      .then(items => {
+        sel.innerHTML = '<option value="">-- Bitte wählen --</option>';
+        items.forEach(it => {
+          const opt = document.createElement("option");
+          opt.value = it.display;       // "bez: text"
+          opt.textContent = it.display;
+          sel.appendChild(opt);
+        });
+        fragenLoaded = true;
+
+        // Preselect saved Frage if provided
+        if (selectedDisplay) {
+          const found = Array.from(sel.options).find(o => o.value === selectedDisplay || o.textContent === selectedDisplay);
+          if (found) {
+            sel.value = found.value;
+          } else {
+            // Saved value not present anymore -> keep it selectable
+            const extra = new Option(selectedDisplay, selectedDisplay, true, true);
+            sel.add(extra, 1);
+          }
+        }
+      });
+  }
+
+  document.addEventListener("DOMContentLoaded", function() {
+    // tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 
+    // load dropdowns
+    Promise.all([fillPromptDropdown(), fillFragenDropdown("")]).catch(console.error);
+
+    // when selecting a prompt, load its data
     document.getElementById("bezDropdown").addEventListener("change", function() {
-        let promptId = this.value;
-        if (!promptId) return;
+      const id = this.value;
+      if (!id) return;
 
-        fetch(`/get_prompt/${promptId}`)
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById("bez").value = data.Bez;
-                document.getElementById("system").value = data.System;
-                document.getElementById("dsgvo").value = data.DSGVO || "";
-                document.getElementById("task").value = data.Task || "";
-            })
-            .catch(error => console.error("Fehler beim Laden des Prompts:", error));
-    });
-
-    document.getElementById("promptForm").addEventListener("submit", function(event) {
-        event.preventDefault();
-        let formData = {
-            id: document.getElementById("bezDropdown").value,
-            bez: document.getElementById("bez").value,
-            system: document.getElementById("system").value,
-            dsgvo: document.getElementById("dsgvo").value,
-            task: document.getElementById("task").value
-        };
-
-        fetch("/update_prompt", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(formData)
-        })
-        .then(response => response.json())
+      fetch(`/get_prompt/${id}`)
+        .then(r => r.json())
         .then(data => {
-            document.getElementById("statusMessage").textContent = data.message;
+          // set fields
+          document.getElementById("bez").value = data.Bez || "";
+          document.getElementById("dsgvo").value = data.DSGVO || "";
+
+          // ensure Fragen dropdown options exist (then preselect)
+          const wanted = data.Frage || "";
+          if (!fragenLoaded) {
+            fillFragenDropdown(wanted);
+          } else {
+            const sel = document.getElementById("frageDropdown");
+            const found = Array.from(sel.options).find(o => o.value === wanted || o.textContent === wanted);
+            if (found) {
+              sel.value = found.value;
+            } else if (wanted) {
+              const extra = new Option(wanted, wanted, true, true);
+              sel.add(extra, 1);
+            } else {
+              sel.value = "";
+            }
+          }
         })
-        .catch(error => console.error("Fehler:", error));
+        .catch(err => console.error("Fehler beim Laden des Prompts:", err));
     });
+
+    // submit updates
+    document.getElementById("promptForm").addEventListener("submit", function(event) {
+      event.preventDefault();
+      const id = document.getElementById("bezDropdown").value;
+      if (!id) {
+        document.getElementById("statusMessage").textContent = "Bitte zuerst einen Prompt auswählen.";
+        return;
+      }
+
+      const formData = {
+        id: id,
+        bez: document.getElementById("bez").value,
+        frage: document.getElementById("frageDropdown").value, // "bez: text"
+        dsgvo: document.getElementById("dsgvo").value
+      };
+
+      fetch("/update_prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData)
+      })
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById("statusMessage").textContent = data.message || "Gespeichert.";
+        // Refresh main dropdown names (in case Bez changed)
+        fillPromptDropdown();
+      })
+      .catch(err => {
+        console.error("Fehler:", err);
+        document.getElementById("statusMessage").textContent = "Fehler beim Speichern.";
+      });
+    });
+  });
 </script>
 
 {% endblock %}

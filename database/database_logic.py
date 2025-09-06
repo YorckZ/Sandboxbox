@@ -41,7 +41,7 @@ def init_db():
                 Bem Text, -- Ergänzungstext, Hilfetext
                 Ja INTEGER, -- Verknüpfung zu nächsten Element; Foreign Key
                 Nein INTEGER, -- Verknüpfung zu nächsten Element; Foreign Key
-                unsicher INTEGER, -- Verknüpfung zu nächsten Element; Foreign Key
+                Unsicher INTEGER, -- Verknüpfung zu nächsten Element; Foreign Key
                 Initial BOOLEAN -- Ist dies die Startfrage
                 )
             """)
@@ -55,13 +55,22 @@ def init_db():
             """)
 
     # tbl_prompts
+    # cursor.execute("""
+    #             CREATE TABLE IF NOT EXISTS tbl_prompts (
+    #             ID INTEGER NOT NULL PRIMARY KEY, -- Primary Key
+    #             Bez TEXT NOT NULL, -- Kurzbezeichnung der Prompt
+    #             System TEXT NOT NULL, -- Text des Prompts
+    #             DSGVO TEXT, -- Text der DSGVO
+    #             Task TEXT -- Aufgabe des LLMs
+    #             )
+    #         """)
+
     cursor.execute("""
                 CREATE TABLE IF NOT EXISTS tbl_prompts (
                 ID INTEGER NOT NULL PRIMARY KEY, -- Primary Key
-                Bez TEXT NOT NULL, -- Kurzbezeichnung der Prompt
-                System TEXT NOT NULL, -- Text des Prompts
-                DSGVO TEXT, -- Text der DSGVO
-                Task TEXT -- Aufgabe des LLMs
+                Bez TEXT NOT NULL, -- Kurzbezeichnung des Prompts
+                Frage TEXT, -- Referenz/Frage (String)
+                DSGVO TEXT -- DSGVO-Artikel (Wortlaut)
                 )
             """)
 
@@ -108,7 +117,7 @@ def get_element_by_id(element_id: int):
                 "Bem": frage["Bem"],
                 "Ja": frage["Ja"],
                 "Nein": frage["Nein"],
-                "Unsicher": frage["unsicher"],
+                "Unsicher": frage["Unsicher"],
                 "Initial": frage["Initial"],
             }
     elif table_id == 2:  # Antwort
@@ -121,20 +130,73 @@ def get_element_by_id(element_id: int):
                 "Bez": antwort["Bez"],
                 "Text": antwort["Text"],
             }
+    # elif table_id == 3:  # Prompt
+    #     prompt = get_prompt_by_id(foreign_id)
+    #     if prompt:
+    #         return {
+    #             "type": "Prompt",
+    #             "ID": element_id,
+    #             "PromptID": foreign_id,
+    #             "Bez": prompt["Bez"],
+    #             "System": prompt["System"],
+    #             "DSGVO": prompt.get("DSGVO", ""),
+    #             "Task": prompt.get("Task", ""),
+    #         }
+
+    # TODO: Simplify
     elif table_id == 3:  # Prompt
         prompt = get_prompt_by_id(foreign_id)
         if prompt:
+            # Include a 'System' field for backward-compatibility with the frontend display
+            system_text = ""
+            if prompt.get("Frage"):
+                system_text += str(prompt["Frage"]).strip()
+            if prompt.get("DSGVO"):
+                if system_text:
+                    system_text += "\n\n"
+                system_text += str(prompt["DSGVO"]).strip()
+
             return {
                 "type": "Prompt",
                 "ID": element_id,
                 "PromptID": foreign_id,
                 "Bez": prompt["Bez"],
-                "System": prompt["System"],
+                "Frage": prompt.get("Frage", ""),
                 "DSGVO": prompt.get("DSGVO", ""),
-                "Task": prompt.get("Task", ""),
+                "System": system_text,  # for current new.html which reads element.System
             }
 
     return None
+
+def get_all_bez_with_element_ids():
+    """
+    Return all elements as {ID=<tbl_elemente.ID>, Bez, type} sorted by Bez.
+    """
+    conn, cursor = open_connection()
+    cursor.execute("""
+        SELECT * FROM (
+            SELECT e.ID AS ElementID, 'Frage' AS type, f.Bez AS Bez
+            FROM tbl_elemente e
+            JOIN tbl_fragen f ON f.ID = e.foreign_id
+            WHERE e.table_id = 1
+            UNION ALL
+            SELECT e.ID AS ElementID, 'Antwort' AS type, a.Bez AS Bez
+            FROM tbl_elemente e
+            JOIN tbl_antworten a ON a.ID = e.foreign_id
+            WHERE e.table_id = 2
+            UNION ALL
+            SELECT e.ID AS ElementID, 'Prompt' AS type, p.Bez AS Bez
+            FROM tbl_elemente e
+            JOIN tbl_prompts p ON p.ID = e.foreign_id
+            WHERE e.table_id = 3
+        ) t
+        ORDER BY t.Bez COLLATE NOCASE ASC
+    """)
+    rows = cursor.fetchall()
+    close_connection(conn)
+    # rows: (ElementID, type, Bez)
+    return [{"ID": r[0], "type": r[1], "Bez": r[2]} for r in rows]
+
 # </editor-fold>
 
 # ===========================================================================================================
@@ -242,7 +304,7 @@ def create_frage(bez: str, text: str, bem: str, ja: int, nein: int, unsicher: in
         if initial:
             cursor.execute("UPDATE tbl_fragen SET Initial = 0 WHERE Initial = 1")
 
-        cursor.execute("INSERT INTO tbl_fragen (ID, Bez, Text, Bem, Ja, Nein, unsicher, Initial) VALUES ("
+        cursor.execute("INSERT INTO tbl_fragen (ID, Bez, Text, Bem, Ja, Nein, Unsicher, Initial) VALUES ("
                        "?, ?, ?, ?, ?, ?, ?, ?);", (element_id, bez, text, bem, ja, nein, unsicher, initial))
 
         conn.commit()
@@ -262,12 +324,12 @@ def get_all_fragen():
 def get_frage_by_id(frage_id: int):
     """Fetches a single frage by ID."""
     conn, cursor = open_connection()
-    cursor.execute("SELECT Bez, Text, Bem, Ja, Nein, unsicher, Initial FROM tbl_fragen WHERE ID = ?", (frage_id,))
+    cursor.execute("SELECT Bez, Text, Bem, Ja, Nein, Unsicher, Initial FROM tbl_fragen WHERE ID = ?", (frage_id,))
     frage = cursor.fetchone()
     close_connection(conn)
 
     if frage:
-        return {"Bez": frage[0], "Text": frage[1], "Bem": frage[2], "Ja": frage[3], "Nein": frage[4], "unsicher": frage[5], "Initial": frage[6]}
+        return {"Bez": frage[0], "Text": frage[1], "Bem": frage[2], "Ja": frage[3], "Nein": frage[4], "Unsicher": frage[5], "Initial": frage[6]}
     return None
 
 def get_initial_frage():
@@ -297,7 +359,7 @@ def update_frage(frage_id: int, bez: str, text: str, bem: str, ja: int, nein: in
         cursor.execute("UPDATE tbl_fragen SET Initial = 0 WHERE Initial = 1")
 
     cursor.execute("""
-        UPDATE tbl_fragen SET Bez = ?, Text = ?, Bem = ?, Ja = ?, Nein = ?, unsicher = ?, Initial = ? WHERE ID = ?
+        UPDATE tbl_fragen SET Bez = ?, Text = ?, Bem = ?, Ja = ?, Nein = ?, Unsicher = ?, Initial = ? WHERE ID = ?
     """, (bez, text, bem, ja, nein, unsicher, initial, frage_id))
     conn.commit()
     close_connection(conn)
@@ -309,6 +371,14 @@ def delete_frage(frage_id: int):
     cursor.execute("DELETE FROM tbl_fragen WHERE ID = ?", (frage_id,))
     conn.commit()
     close_connection(conn)
+
+def get_all_fragen_for_dropdown():
+    """Return Fragen as 'Bez: Text', sorted alphabetically by Bez (case-insensitive)."""
+    conn, cursor = open_connection()
+    cursor.execute("SELECT ID, Bez, Text FROM tbl_fragen ORDER BY Bez COLLATE NOCASE ASC")
+    rows = cursor.fetchall()
+    close_connection(conn)
+    return [{"ID": r[0], "Bez": r[1], "Text": r[2], "Display": f"{r[1]}: {r[2]}"} for r in rows]
 
 # ===========================================================================================================
 
@@ -366,15 +436,71 @@ def delete_antwort(antwort_id: int):
 
 # ===========================================================================================================
 
-def create_prompt(bez:str, system: str, dsgvo: str, task: str):
-    conn = None
+# def create_prompt(bez:str, system: str, dsgvo: str, task: str):
+#     conn = None
+#
+#     try:
+#         conn, cursor = open_connection()
+#         element_id: int = get_next_id()
+#         create_element(3, element_id)
+#
+#         cursor.execute("INSERT INTO tbl_prompts (ID, Bez, System, DSGVO, Task) VALUES (?, ?, ?, ?, ?);", (element_id, bez, system, dsgvo, task))
+#
+#         conn.commit()
+#     except Exception as e:
+#         print(e)
+#     finally:
+#         close_connection(conn)
+#
+# def get_all_prompts():
+#     """Fetches all prompts' IDs and names from tbl_prompts."""
+#     conn, cursor = open_connection()
+#     cursor.execute("SELECT ID, Bez FROM tbl_prompts")
+#     prompts = cursor.fetchall()
+#     close_connection(conn)
+#     return [{"ID": row[0], "Bez": row[1]} for row in prompts]
+#
+# def get_prompt_by_id(prompt_id):
+#     """Fetches a single prompt by ID."""
+#     conn, cursor = open_connection()
+#     cursor.execute("SELECT Bez, System, DSGVO, Task FROM tbl_prompts WHERE ID = ?", (prompt_id,))
+#     prompt = cursor.fetchone()
+#     close_connection(conn)
+#
+#     if prompt:
+#         return {"Bez": prompt[0], "System": prompt[1], "DSGVO": prompt[2], "Task": prompt[3]}
+#     return None
+#
+# def update_prompt(prompt_id, bez, system, dsgvo, task):
+#     """Updates an existing prompt."""
+#     conn, cursor = open_connection()
+#     cursor.execute("""
+#         UPDATE tbl_prompts SET Bez = ?, System = ?, DSGVO = ?, Task = ? WHERE ID = ?
+#     """, (bez, system, dsgvo, task, prompt_id))
+#     conn.commit()
+#     close_connection(conn)
+#
+# def delete_prompt(prompt_id):
+#     """Deletes a prompt from tbl_prompts based on the given ID."""
+#     conn, cursor = open_connection()
+#     delete_element(prompt_id)
+#     cursor.execute("DELETE FROM tbl_prompts WHERE ID = ?", (prompt_id,))
+#     conn.commit()
+#     close_connection(conn)
 
+# ===================== Prompts (new schema: Bez, Frage, DSGVO) =====================
+
+def create_prompt(bez: str, frage: str, dsgvo: str):
+    conn = None
     try:
         conn, cursor = open_connection()
         element_id: int = get_next_id()
         create_element(3, element_id)
 
-        cursor.execute("INSERT INTO tbl_prompts (ID, Bez, System, DSGVO, Task) VALUES (?, ?, ?, ?, ?);", (element_id, bez, system, dsgvo, task))
+        cursor.execute(
+            "INSERT INTO tbl_prompts (ID, Bez, Frage, DSGVO) VALUES (?, ?, ?, ?);",
+            (element_id, bez, frage, dsgvo)
+        )
 
         conn.commit()
     except Exception as e:
@@ -393,20 +519,20 @@ def get_all_prompts():
 def get_prompt_by_id(prompt_id):
     """Fetches a single prompt by ID."""
     conn, cursor = open_connection()
-    cursor.execute("SELECT Bez, System, DSGVO, Task FROM tbl_prompts WHERE ID = ?", (prompt_id,))
+    cursor.execute("SELECT Bez, Frage, DSGVO FROM tbl_prompts WHERE ID = ?", (prompt_id,))
     prompt = cursor.fetchone()
     close_connection(conn)
 
     if prompt:
-        return {"Bez": prompt[0], "System": prompt[1], "DSGVO": prompt[2], "Task": prompt[3]}
+        return {"Bez": prompt[0], "Frage": prompt[1], "DSGVO": prompt[2]}
     return None
 
-def update_prompt(prompt_id, bez, system, dsgvo, task):
+def update_prompt(prompt_id, bez, frage, dsgvo):
     """Updates an existing prompt."""
     conn, cursor = open_connection()
     cursor.execute("""
-        UPDATE tbl_prompts SET Bez = ?, System = ?, DSGVO = ?, Task = ? WHERE ID = ?
-    """, (bez, system, dsgvo, task, prompt_id))
+        UPDATE tbl_prompts SET Bez = ?, Frage = ?, DSGVO = ? WHERE ID = ?
+    """, (bez, frage, dsgvo, prompt_id))
     conn.commit()
     close_connection(conn)
 
@@ -417,6 +543,16 @@ def delete_prompt(prompt_id):
     cursor.execute("DELETE FROM tbl_prompts WHERE ID = ?", (prompt_id,))
     conn.commit()
     close_connection(conn)
+
+def prompt_is_referenced(prompt_id: int) -> bool:
+    conn, cursor = open_connection()
+    cursor.execute("""
+        SELECT COUNT(*) FROM tbl_fragen
+        WHERE Ja = ? OR Nein = ? OR unsicher = ?
+    """, (prompt_id, prompt_id, prompt_id))
+    count = cursor.fetchone()[0]
+    close_connection(conn)
+    return count > 0
 
 # ===========================================================================================================
 

@@ -55,33 +55,40 @@
                     <textarea class="form-control rounded-3" id="bem" name="bem" rows="2"></textarea>
                 </div>
 
+                <!-- Dropdowns with filtering -->
                 <div class="row mb-3">
                     <div class="col-md-4 mb-2 mb-md-0">
                         <label for="ja" class="form-label">
-                            Ja (nächstes Element ID)
+                            Ja (nächstes Element)
                             <i class="bi bi-info-circle-fill ms-2 text-info"
                                data-bs-toggle="tooltip"
-                               title="ID des nächsten Elements, falls 'Ja' gewählt wird."></i>
+                               title="Wählen Sie das nächste Element, das bei Antwort 'Ja' angezeigt wird."></i>
                         </label>
-                        <input type="number" class="form-control rounded-3" id="ja" name="ja" min="0">
+                        <select class="form-select rounded-3" id="ja" name="ja">
+                            <option value="">-- wählen --</option>
+                        </select>
                     </div>
                     <div class="col-md-4 mb-2 mb-md-0">
                         <label for="nein" class="form-label">
-                            Nein (nächstes Element ID)
+                            Nein (nächstes Element)
                             <i class="bi bi-info-circle-fill ms-2 text-info"
                                data-bs-toggle="tooltip"
-                               title="ID des nächsten Elements, falls 'Nein' gewählt wird."></i>
+                               title="Wählen Sie das nächste Element, das bei Antwort 'Nein' angezeigt wird."></i>
                         </label>
-                        <input type="number" class="form-control rounded-3" id="nein" name="nein" min="0">
+                        <select class="form-select rounded-3" id="nein" name="nein">
+                            <option value="">-- wählen --</option>
+                        </select>
                     </div>
                     <div class="col-md-4">
                         <label for="unsicher" class="form-label">
-                            Unsicher (nächstes Element ID)
+                            Unsicher (nächstes Element)
                             <i class="bi bi-info-circle-fill ms-2 text-info"
                                data-bs-toggle="tooltip"
-                               title="ID des nächsten Elements, falls 'Unsicher' gewählt wird."></i>
+                               title="Wählen Sie das nächste Element, das bei Antwort 'Unsicher' angezeigt wird."></i>
                         </label>
-                        <input type="number" class="form-control rounded-3" id="unsicher" name="unsicher" min="0">
+                        <select class="form-select rounded-3" id="unsicher" name="unsicher">
+                            <option value="">-- wählen --</option>
+                        </select>
                     </div>
                 </div>
 
@@ -109,23 +116,77 @@
 </div>
 
 <script>
+    // cache of all Bez entries
+    let allBezList = [];
+    let allBezLoaded = false;
+
+    function createOption(item) {
+        return `<option value="${item.ID}">${item.Bez} (${item.type})</option>`;
+    }
+
+    function populateSelectFiltered(selectId, allowedTypes) {
+        const sel = document.getElementById(selectId);
+        sel.innerHTML = '<option value="">-- wählen --</option>' +
+            allBezList.filter(it => allowedTypes.includes(it.type)).map(createOption).join('');
+    }
+
+    function ensureValueVisible(selectId, value) {
+        if (!value) return;
+        const sel = document.getElementById(selectId);
+        if ([...sel.options].some(o => String(o.value) === String(value))) return;
+
+        // add a temporary, selected option for the current (now disallowed) value
+        const found = allBezList.find(it => String(it.ID) === String(value));
+        const label = found ? `${found.Bez} (${found.type}) – nicht erlaubt` : `ID ${value} – nicht erlaubt`;
+        const opt = new Option(label, value, true, true);
+        sel.add(opt, 1);
+    }
+
+    function initAllBez() {
+        if (allBezLoaded) return Promise.resolve();
+        return fetch("/all_bez")
+            .then(r => r.json())
+            .then(list => {
+                allBezList = list; // [{Bez, type, ID}]
+                // Fill with filters:
+                populateSelectFiltered("ja", ["Frage", "Antwort"]);
+                populateSelectFiltered("nein", ["Frage", "Antwort"]);
+                populateSelectFiltered("unsicher", ["Prompt"]);
+                allBezLoaded = true;
+            })
+            .catch(err => console.error("Fehler beim Laden der Bez-Liste:", err));
+    }
+
     function loadFrage() {
         const frageId = document.getElementById("frageSelect").value;
         if (!frageId) return;
 
-        fetch(`/get_frage/${frageId}`)
+        initAllBez()
+            .then(() => fetch(`/get_frage/${frageId}`))
             .then(response => response.json())
             .then(data => {
                 document.getElementById("bez").value = data.Bez || "";
                 document.getElementById("text").value = data.Text || "";
                 document.getElementById("bem").value = data.Bem || "";
-                document.getElementById("ja").value = data.Ja || "";
-                document.getElementById("nein").value = data.Nein || "";
-                document.getElementById("unsicher").value = data.Unsicher || "";
+
+                const jaVal = data.Ja ?? data.ja ?? "";
+                const neinVal = data.Nein ?? data.nein ?? "";
+                const unsicherVal = data.unsicher ?? data.Unsicher ?? "";
+
+                // set allowed selections
+                document.getElementById("ja").value = jaVal || "";
+                document.getElementById("nein").value = neinVal || "";
+                document.getElementById("unsicher").value = unsicherVal || "";
+
+                // if a saved value is now disallowed, still show it (marked)
+                ensureValueVisible("ja", jaVal);
+                ensureValueVisible("nein", neinVal);
+                ensureValueVisible("unsicher", unsicherVal);
+
                 document.getElementById("initial").value = data.Initial ? "1" : "0";
                 document.getElementById("frageForm").dataset.frageId = frageId;
             })
-            .catch(error => alert("Fehler beim Laden der Frage."));
+            .catch(() => alert("Fehler beim Laden der Frage."));
     }
 
     function updateFrage() {
@@ -135,25 +196,22 @@
             return;
         }
 
-        // Read select value (not .checked!)
         const initialValue = document.getElementById("initial").value;
-
-        // If setting as Startfrage, confirm first
         if (initialValue === "1") {
             if (!confirm("Achtung: Es kann nur eine Startfrage geben. Wenn Sie fortfahren, wird diese Frage zur neuen Startfrage gesetzt und alle anderen werden zurückgesetzt. Fortfahren?")) {
-                return; // Abort update
+                return;
             }
         }
 
         const formData = {
-            id: parseInt(frageId),
+            id: parseInt(frageId, 10),
             bez: document.getElementById("bez").value,
             text: document.getElementById("text").value,
             bem: document.getElementById("bem").value,
             ja: document.getElementById("ja").value || null,
             nein: document.getElementById("nein").value || null,
             unsicher: document.getElementById("unsicher").value || null,
-            initial: parseInt(initialValue) // 0 or 1
+            initial: parseInt(initialValue, 10)
         };
 
         fetch('/update_frage', {
@@ -161,9 +219,22 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData)
         })
-        .then(response => response.json())
-        .then(data => alert(data.message))
-        .catch(error => alert("Fehler beim Aktualisieren der Frage."));
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById("statusMessage").textContent = data.message || "Gespeichert.";
+        })
+        .catch(() => {
+            document.getElementById("statusMessage").textContent = "Fehler beim Aktualisieren der Frage.";
+        });
     }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        initAllBez(); // prefill the filtered option lists
+    });
 </script>
 {% endblock %}

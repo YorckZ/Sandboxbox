@@ -15,39 +15,52 @@
                         Kurzbezeichnung
                         <i class="bi bi-info-circle-fill ms-2 text-info"
                            data-bs-toggle="tooltip"
-                           title="Ein kurzer, eindeutiger Name (z.B. PR01), der diesen Prompt identifiziert."></i>
+                           title="Ein kurzer, eindeutiger Name (z. B. „Hilfe für Art. 14“)."></i>
                     </label>
-                    <input type="text" class="form-control rounded-3" id="bez" name="bez" required placeholder="z.B. PR01">
+                    <input type="text" class="form-control rounded-3" id="bez" name="bez" required>
                 </div>
 
-                <div class="mb-3">
-                    <label for="system" class="form-label">
-                        System
-                        <i class="bi bi-info-circle-fill ms-2 text-info"
-                           data-bs-toggle="tooltip"
-                           title="System-Prompt: Steuert das Verhalten des LLMs (z. B. Rollenbeschreibung oder Formatvorgaben)."></i>
+                <div class="mb-2">
+                    <label class="form-label mb-0" style="font-weight: normal;">
+                        Du bist Experte für Datenschutz und sollst eine Empfehlung aussprechen.
+                        Dem Benutzer wurde folgende Frage gestellt:
                     </label>
-                    <textarea class="form-control rounded-3" id="system" name="system" rows="3" required placeholder="z.B. Du bist ein hilfsbereiter Assistent..."></textarea>
                 </div>
 
+                <!-- Dropdown -->
                 <div class="mb-3">
-                    <label for="dsgvo" class="form-label">
-                        DSGVO
-                        <i class="bi bi-info-circle-fill ms-2 text-info"
-                           data-bs-toggle="tooltip"
-                           title="Geben Sie hier ggf. DSGVO-relevante Hinweise oder Einschränkungen für den Prompt ein. (optional)"></i>
+                    <select class="form-select rounded-3" id="dropdown" name="dropdown">
+                        <option value="">-- Bitte wählen --</option>
+                        <!-- Options to be added later -->
+                    </select>
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label mb-0" style="font-weight: normal;">
+                        Der Nutzer ist sich nicht sicher. Der entsprechende Rechtstext lautet:
                     </label>
-                    <textarea class="form-control rounded-3" id="dsgvo" name="dsgvo" rows="2" placeholder="z.B. Keine personenbezogenen Daten verwenden..."></textarea>
                 </div>
 
                 <div class="mb-4">
-                    <label for="task" class="form-label">
-                        Aufgabe des LLMs
-                        <i class="bi bi-info-circle-fill ms-2 text-info"
-                           data-bs-toggle="tooltip"
-                           title="Beschreiben Sie die konkrete Aufgabe oder den Anwendungszweck für das LLM. (optional)"></i>
+                    <label for="c" class="form-label mb-1" style="font-weight: normal;"></label>
+                    <textarea class="form-control rounded-3" id="c" name="c" rows="5"
+                              placeholder="Bitte Artikel der DSGVO im Wortlaut eintragen."></textarea>
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label mb-0" style="font-weight: normal;">Er hat hierzu folgendes angegeben: {Angaben_des_Users}.</label>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label mb-0" style="font-weight: normal;">
+                        (Optional:)<br>
+                        Weiterhin hat er folgende Dokumenteninhalte bereitgestellt: {document_text}.
                     </label>
-                    <textarea class="form-control rounded-3" id="task" name="task" rows="2" placeholder="z.B. Antworten auf juristische Fragen formulieren..."></textarea>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label mb-0" style="font-weight: normal;">
+                        Gib eine Empfehlung, ob die DSGVO zutrifft. Antworte zunächst nur mit Ja oder Nein. Anschließend begründe
+                        Deine Einschätzung. Zuletzt weise darauf hin, dass Du nur eine KI bist und dass dies keine Rechtsberatung darstellt.
+                    </label>
                 </div>
 
                 <button type="submit" class="btn btn-primary px-4 rounded-3 shadow-sm">
@@ -60,7 +73,6 @@
     </div>
 </div>
 
-<!-- Bootstrap Tooltips Activation Script -->
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
@@ -68,29 +80,53 @@
             return new bootstrap.Tooltip(tooltipTriggerEl);
         });
 
+        // NEW: fill the dropdown with "bez: text"
+        (function loadFragenForDropdown() {
+            const sel = document.getElementById("dropdown");
+            // keep the default option
+            fetch("/fragen_dropdown")
+                .then(r => r.json())
+                .then(items => {
+                    // reset to default first
+                    sel.innerHTML = '<option value="">-- Bitte wählen --</option>';
+                    items.forEach(it => {
+                        const opt = document.createElement("option");
+                        opt.value = it.display;      // store the string "bez: text" as the value
+                        opt.textContent = it.display; // and also display it
+                        sel.appendChild(opt);
+                    });
+                })
+                .catch(err => {
+                    console.error("Fehler beim Laden der Fragen:", err);
+                });
+        })();
+
         document.getElementById("promptForm").addEventListener("submit", function (event) {
             event.preventDefault();
-            let formData = {
+            const formData = {
                 bez: document.getElementById("bez").value,
-                system: document.getElementById("system").value,
-                dsgvo: document.getElementById("dsgvo").value,
-                task: document.getElementById("task").value
+                dropdown: document.getElementById("dropdown").value, // = "bez: text"
+                c: document.getElementById("c").value
             };
 
             fetch("/save_prompt", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData)
             })
-            .then(response => response.json())
+            .then(r => r.json())
             .then(data => {
-                document.getElementById("statusMessage").textContent = data.message;
-                document.getElementById("promptForm").reset();
+                document.getElementById("statusMessage").textContent = data.message || "Gespeichert.";
+                if (data.ok !== false) {
+                    document.getElementById("promptForm").reset();
+                }
             })
-            .catch(error => console.error("Fehler:", error));
+            .catch(err => {
+                console.error("Fehler:", err);
+                document.getElementById("statusMessage").textContent = "Fehler beim Speichern.";
+            });
         });
     });
 </script>
+
 {% endblock %}

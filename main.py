@@ -28,7 +28,6 @@ app = Flask(__name__)
 #
 # client = OpenAI(api_key=api_key)
 db.init_db()
-# </editor-fold>
 
 @app.route('/')
 def home():
@@ -57,8 +56,15 @@ def next_element():
         if not frage:
             return jsonify({"error": "Frage nicht gefunden"}), 404
 
+        # # Map answer to the correct dict key (unsicher is lower-case in DB dict)
+        # key_map = {'ja': 'Ja', 'nein': 'Nein', 'unsicher': 'unsicher'}
+        # key = key_map.get(antwort)
+        # if not key:
+        #     return jsonify({"error": "Ungültige Antwort"}), 400
+
         # Determine the next element's ID based on the user's answer
         next_id = frage.get(antwort.capitalize())  # 'Ja', 'Nein', 'Unsicher' as column names
+        # next_id = frage.get(key)
 
         if not next_id:
             # return jsonify({"done": True})  # End, or Absage/Zusage if you want
@@ -75,6 +81,7 @@ def next_element():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+# </editor-fold>
 
 # ===========================================================================================================
 
@@ -125,18 +132,21 @@ def edit_frage():
 
 @app.route("/all_bez")
 def all_bez():
-    fragen = db.get_all_fragen()
-    antworten = db.get_all_antworten()
-    prompts = db.get_all_prompts()
+    # fragen = db.get_all_fragen()
+    # antworten = db.get_all_antworten()
+    # prompts = db.get_all_prompts()
+    #
+    # # get all Bez, add table type and ID if you want (for lookup purposes)
+    # bez_list = []
+    # for row in fragen:
+    #     bez_list.append({"Bez": row["Bez"], "type": "Frage", "ID": row["ID"]})
+    # for row in antworten:
+    #     bez_list.append({"Bez": row["Bez"], "type": "Antwort", "ID": row["ID"]})
+    # for row in prompts:
+    #     bez_list.append({"Bez": row["Bez"], "type": "Prompt", "ID": row["ID"]})
 
-    # get all Bez, add table type and ID if you want (for lookup purposes)
-    bez_list = []
-    for row in fragen:
-        bez_list.append({"Bez": row["Bez"], "type": "Frage", "ID": row["ID"]})
-    for row in antworten:
-        bez_list.append({"Bez": row["Bez"], "type": "Antwort", "ID": row["ID"]})
-    for row in prompts:
-        bez_list.append({"Bez": row["Bez"], "type": "Prompt", "ID": row["ID"]})
+    # unified list with tbl_elemente.ID so flows work
+    bez_list = db.get_all_bez_with_element_ids()
 
     # sort alphabetically by Bez
     bez_list.sort(key=lambda x: x["Bez"].lower())
@@ -146,7 +156,8 @@ def all_bez():
 def get_fragen():
     try:
         fragen = db.get_all_fragen()
-        return jsonify([{"ID": row[0], "Bez": row[1]} for row in fragen])
+        # return jsonify([{"ID": row[0], "Bez": row[1]} for row in fragen])
+        return jsonify(fragen)  # already [{"ID":..., "Bez":...}]
     except Exception as e:
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
 
@@ -204,6 +215,14 @@ def get_initial_frage_route():
     if frage:
         return jsonify(frage)
     return jsonify({"error": "Keine Initialfrage gefunden."}), 404
+
+@app.route("/fragen_dropdown", methods=["GET"])
+def fragen_dropdown():
+    try:
+        items = db.get_all_fragen_for_dropdown()
+        return jsonify([{"id": it["ID"], "display": it["Display"]} for it in items])
+    except Exception as e:
+        return jsonify({"message": f"Fehler: {str(e)}"}), 500
 
 # </editor-fold>
 
@@ -303,16 +322,28 @@ def anlegen_prompt():
 @app.route('/save_prompt', methods=['POST'])
 def save_prompt():
     try:
-        data = request.get_json()
+        # data = request.get_json()
+        #
+        # # Extract and sanitize input values
+        # bez = data.get("bez")
+        # system = data.get("system")
+        # dsgvo = data.get("dsgvo", "")
+        # task = data.get("task", "")
+        #
+        # # Call database function to insert the prompt
+        # db.create_prompt(bez, system, dsgvo, task)
 
-        # Extract and sanitize input values
-        bez = data.get("bez")
-        system = data.get("system")
-        dsgvo = data.get("dsgvo", "")
-        task = data.get("task", "")
+        data = request.get_json() or {}
 
-        # Call database function to insert the prompt
-        db.create_prompt(bez, system, dsgvo, task)
+        # Map frontend fields → DB fields
+        bez = (data.get("bez") or "").strip()
+        frage = (data.get("dropdown") or data.get("frage") or "").strip()
+        dsgvo = data.get("c") or data.get("dsgvo") or ""
+
+        if not bez:
+            return jsonify({"ok": False, "message": "Kurzbezeichnung (bez) ist erforderlich!"}), 400
+
+        db.create_prompt(bez=bez, frage=frage, dsgvo=dsgvo)
 
         return jsonify({"message": "Prompt saved successfully!"})
 
@@ -339,20 +370,91 @@ def get_prompt(prompt_id):
 @app.route("/update_prompt", methods=["POST"])
 def update_prompt():
     try:
-        data = request.get_json()
-        if not data.get("id") or not data.get("bez") or not data.get("system"):
-            return jsonify({"message": "Fehlende erforderliche Felder!"}), 400
+        # data = request.get_json()
+        # if not data.get("id") or not data.get("bez") or not data.get("system"):
+        #     return jsonify({"message": "Fehlende erforderliche Felder!"}), 400
+        #
+        # db.update_prompt(
+        #     prompt_id=data["id"],
+        #     bez=data["bez"],
+        #     system=data["system"],
+        #     dsgvo=data.get("dsgvo", ""),
+        #     task=data.get("task", "")
+        # )
+        data = request.get_json() or {}
+
+        prompt_id = data.get("id")
+        if not prompt_id:
+            return jsonify({"message": "ID fehlt."}), 400
+
+        # Accept both old and new field names for a smoother transition
+        bez = (data.get("bez") or "").strip()
+        frage = (data.get("frage") or data.get("system") or data.get("dropdown") or "").strip()
+        dsgvo = data.get("dsgvo") or data.get("c") or ""
+
+        if not bez:
+            return jsonify({"message": "Kurzbezeichnung (bez) ist erforderlich!"}), 400
 
         db.update_prompt(
-            prompt_id=data["id"],
-            bez=data["bez"],
-            system=data["system"],
-            dsgvo=data.get("dsgvo", ""),
-            task=data.get("task", "")
+            prompt_id=prompt_id,
+            bez=bez,
+            frage=frage,
+            dsgvo=dsgvo
         )
+
         return jsonify({"message": "Prompt erfolgreich aktualisiert!"})
     except Exception as e:
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
+
+@app.route('/run_prompt', methods=['POST'])
+def run_prompt():
+    try:
+        data = request.get_json() or {}
+        prompt_id = data.get('prompt_id')
+        user_input = (data.get('user_input') or '').strip()
+        document_text = (data.get('document_text') or '').strip()
+
+        if not prompt_id:
+            return jsonify({"error": "prompt_id fehlt"}), 400
+
+        prompt = db.get_prompt_by_id(int(prompt_id))
+        if not prompt:
+            return jsonify({"error": "Prompt nicht gefunden"}), 404
+
+        # Static parts from your _prompt_anlegen.html labels
+        preA = ("Du bist Experte für Datenschutz und sollst eine Empfehlung aussprechen. "
+                "Dem Benutzer wurde folgende Frage gestellt:")
+        preB = "Der Nutzer ist sich nicht sicher. Der entsprechende Rechtstext lautet:"
+        instrF = ("Gib eine Empfehlung, ob die DSGVO zutrifft. Antworte zunächst nur mit Ja oder Nein. "
+                  "Anschließend begründe Deine Einschätzung. Zuletzt weise darauf hin, dass Du nur eine KI bist "
+                  "und dass dies keine Rechtsberatung darstellt.")
+
+        frage_str = prompt.get("Frage", "") or ""
+        dsgvo_str = prompt.get("DSGVO", "") or ""
+
+        # Compose final prompt for the LLM
+        parts = [
+            preA,
+            frage_str,
+            "",
+            preB,
+            dsgvo_str,
+            "",
+            f"Er hat hierzu folgendes angegeben: {user_input}" if user_input else "Es wurden keine zusätzlichen Angaben gemacht.",
+        ]
+        if document_text:
+            parts.append("(Optional:)\nWeiterhin hat er folgende Dokumenteninhalte bereitgestellt: " + document_text)
+        parts.extend(["", instrF])
+
+        full_prompt = "\n".join(parts).strip()
+
+        # For now: demo result. Replace with your local LLM call.
+        demo_result = "⚠️ Demo: Hier würde jetzt die Antwort deines lokalen LLM erscheinen."
+
+        return jsonify({"prompt": full_prompt, "result": demo_result})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/loeschen_prompt')
 def loeschen_prompt():
@@ -361,7 +463,14 @@ def loeschen_prompt():
 
 @app.route("/delete_prompt/<int:prompt_id>", methods=["DELETE"])
 def delete_prompt(prompt_id):
+    # try:
+    #     db.delete_prompt(prompt_id)
+    #     return jsonify({"message": "Prompt erfolgreich gelöscht!"})
+    # except Exception as e:
+    #     return jsonify({"message": f"Fehler: {str(e)}"}), 500
     try:
+        if db.prompt_is_referenced(prompt_id):
+            return jsonify({"message": "Prompt wird noch von Fragen referenziert und kann nicht gelöscht werden."}), 400
         db.delete_prompt(prompt_id)
         return jsonify({"message": "Prompt erfolgreich gelöscht!"})
     except Exception as e:
