@@ -12,7 +12,9 @@ import os
 # import PyPDF2
 # import sqlite3
 import database.database_logic as db
-
+import os
+import requests
+from werkzeug.utils import secure_filename
 
 # <editor-fold desc="Basic code functionality">
 app = Flask(__name__)
@@ -28,6 +30,11 @@ app = Flask(__name__)
 #
 # client = OpenAI(api_key=api_key)
 db.init_db()
+# try to import a PDF extractor
+try:
+    from PyPDF2 import PdfReader
+except Exception:
+    PdfReader = None
 
 @app.route('/')
 def home():
@@ -406,13 +413,117 @@ def update_prompt():
     except Exception as e:
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
 
+# @app.route('/run_prompt', methods=['POST'])
+# def run_prompt():
+#     try:
+#         # Accept both JSON and multipart/form-data
+#         prompt_id = None
+#         user_input = ""
+#         document_text = ""
+#
+#         if request.content_type and "application/json" in request.content_type:
+#             data = request.get_json() or {}
+#             prompt_id = data.get('prompt_id')
+#             user_input = (data.get('user_input') or '').strip()
+#             document_text = (data.get('document_text') or '').strip()
+#             uploaded_file = None
+#         else:
+#             prompt_id = request.form.get('prompt_id')
+#             user_input = (request.form.get('user_input') or '').strip()
+#             document_text = (request.form.get('document_text') or '').strip()
+#             uploaded_file = request.files.get('file')  # single PDF (optional)
+#
+#         if not prompt_id:
+#             return jsonify({"error": "prompt_id fehlt"}), 400
+#
+#         prompt = db.get_prompt_by_id(int(prompt_id))
+#         if not prompt:
+#             return jsonify({"error": "Prompt nicht gefunden"}), 404
+#
+#         # Static label text (from your prompt templates)
+#         preA = ("Du bist Experte für Datenschutz und sollst eine Empfehlung aussprechen. "
+#                 "Dem Benutzer wurde folgende Frage gestellt:")
+#         preB = "Der Nutzer ist sich nicht sicher. Der entsprechende Rechtstext lautet:"
+#         instrF = ("Gib eine Empfehlung, ob die DSGVO zutrifft. Antworte zunächst nur mit Ja oder Nein. "
+#                   "Anschließend begründe Deine Einschätzung. Zuletzt weise darauf hin, dass Du nur eine KI bist "
+#                   "und dass dies keine Rechtsberatung darstellt.")
+#
+#         frage_str = prompt.get("Frage", "") or ""
+#         dsgvo_str = prompt.get("DSGVO", "") or ""
+#
+#         parts = [
+#             preA,
+#             frage_str,
+#             "",
+#             preB,
+#             dsgvo_str,
+#             "",
+#             f"Er hat hierzu folgendes angegeben: {user_input}" if user_input else "Es wurden keine zusätzlichen Angaben gemacht.",
+#         ]
+#
+#         # If a file was provided, acknowledge it (plug in real PDF parsing later)
+#         if uploaded_file and uploaded_file.filename:
+#             parts.append(f"(Optional:) Weiterhin hat er folgende Dokumente bereitgestellt: {uploaded_file.filename}")
+#         elif document_text:
+#             parts.append("(Optional:)\nWeiterhin hat er folgende Dokumenteninhalte bereitgestellt: " + document_text)
+#
+#         parts.extend(["", instrF])
+#         full_prompt = "\n".join(parts).strip()
+#
+#         # Demo output placeholder
+#         demo_result = "⚠️ Demo: Hier würde jetzt die Antwort deines lokalen LLM erscheinen."
+#
+#         return jsonify({"prompt": full_prompt, "result": demo_result})
+#
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
+
+def _extract_pdf_text(file_storage) -> str:
+    """Return plain text from the uploaded PDF (empty string if extraction fails)."""
+    if not file_storage:
+        return ""
+    if PdfReader is None:
+        # PyPDF2 not installed
+        return ""
+    try:
+        # PyPDF2 can read from a file-like; use the stream directly
+        reader = PdfReader(file_storage.stream)
+        parts = []
+        for page in reader.pages:
+            txt = page.extract_text() or ""
+            parts.append(txt.strip())
+        return "\n\n".join([p for p in parts if p])
+    except Exception:
+        return ""
+
+def _frage_text_only(frage_field: str) -> str:
+    """Input is 'Bez: Text' (or just Text). Return only the Text part."""
+    if not frage_field:
+        return ""
+    if ":" in frage_field:
+        return frage_field.split(":", 1)[1].strip()
+    return frage_field.strip()
+
 @app.route('/run_prompt', methods=['POST'])
 def run_prompt():
+    """
+    Compose the final prompt (without showing it), send it to a local Ollama model,
+    return only the model's response.
+    """
     try:
-        data = request.get_json() or {}
-        prompt_id = data.get('prompt_id')
-        user_input = (data.get('user_input') or '').strip()
-        document_text = (data.get('document_text') or '').strip()
+        # Accept JSON and multipart/form-data
+        content_type = (request.content_type or "")
+        if "application/json" in content_type:
+            data = request.get_json() or {}
+            prompt_id = data.get('prompt_id')
+            user_input = (data.get('user_input') or '').strip()
+            document_text = (data.get('document_text') or '').strip()
+            uploaded_file = None
+        else:
+            prompt_id = request.form.get('prompt_id')
+            user_input = (request.form.get('user_input') or '').strip()
+            document_text = (request.form.get('document_text') or '').strip()
+            uploaded_file = request.files.get('file')
 
         if not prompt_id:
             return jsonify({"error": "prompt_id fehlt"}), 400
@@ -421,7 +532,7 @@ def run_prompt():
         if not prompt:
             return jsonify({"error": "Prompt nicht gefunden"}), 404
 
-        # Static parts from your _prompt_anlegen.html labels
+        # A/B/F fixed parts
         preA = ("Du bist Experte für Datenschutz und sollst eine Empfehlung aussprechen. "
                 "Dem Benutzer wurde folgende Frage gestellt:")
         preB = "Der Nutzer ist sich nicht sicher. Der entsprechende Rechtstext lautet:"
@@ -429,29 +540,49 @@ def run_prompt():
                   "Anschließend begründe Deine Einschätzung. Zuletzt weise darauf hin, dass Du nur eine KI bist "
                   "und dass dies keine Rechtsberatung darstellt.")
 
-        frage_str = prompt.get("Frage", "") or ""
+        frage_text = _frage_text_only(prompt.get("Frage", "") or "")
         dsgvo_str = prompt.get("DSGVO", "") or ""
 
-        # Compose final prompt for the LLM
+        # Extract PDF text (if any) and combine with optional document_text field
+        pdf_text = _extract_pdf_text(uploaded_file)
+        extra_doc = document_text.strip()
+        combined_doc_text = "\n\n".join([t for t in [pdf_text, extra_doc] if t]).strip()
+
+        # Build the final user prompt (not returned to client)
         parts = [
             preA,
-            frage_str,
+            frage_text,
             "",
             preB,
             dsgvo_str,
             "",
             f"Er hat hierzu folgendes angegeben: {user_input}" if user_input else "Es wurden keine zusätzlichen Angaben gemacht.",
         ]
-        if document_text:
-            parts.append("(Optional:)\nWeiterhin hat er folgende Dokumenteninhalte bereitgestellt: " + document_text)
+        if combined_doc_text:
+            parts.append("(Optional:) Weiterhin hat er folgende Dokumenteninhalte bereitgestellt:\n" + combined_doc_text)
         parts.extend(["", instrF])
-
         full_prompt = "\n".join(parts).strip()
 
-        # For now: demo result. Replace with your local LLM call.
-        demo_result = "⚠️ Demo: Hier würde jetzt die Antwort deines lokalen LLM erscheinen."
-
-        return jsonify({"prompt": full_prompt, "result": demo_result})
+        # Call local Ollama
+        model_name = os.getenv("OLLAMA_MODEL", "llama3.1")  # set OLLAMA_MODEL in your env if you prefer
+        try:
+            r = requests.post(
+                "http://localhost:11434/api/generate",
+                json={
+                    "model": model_name,
+                    "prompt": full_prompt,
+                    "stream": False
+                },
+                timeout=120
+            )
+            r.raise_for_status()
+            data = r.json()
+            answer = (data.get("response") or "").strip()
+            if not answer:
+                return jsonify({"error": "Leere Antwort vom LLM."}), 502
+            return jsonify({"result": answer})
+        except requests.RequestException as re:
+            return jsonify({"error": f"Ollama nicht erreichbar oder Fehler: {re}"}), 502
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

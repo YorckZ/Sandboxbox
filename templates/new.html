@@ -12,44 +12,67 @@
 <script>
     let flowIndex = 0;
 
-    function renderElement(element, idx) {
-        if (!element) return;
+function renderElement(element, idx) {
+    if (!element) return;
 
-        let html = "";
+    let html = "";
 
-        if (element.type === "Frage") {
-            html = `
-            <div class="card shadow rounded-4 border-0 mb-4 frage-block" data-flow-index="${idx}">
-                <div class="card-body p-4">
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="bi bi-question-circle text-primary me-2 fs-2"></i>
-                        <h5 class="mb-0 text-primary">${element.Bez}</h5>
-                    </div>
-                    <p class="fs-5 mb-4">${element.Text}</p>
-                    ${element.Bem ? `<p class="fst-italic text-muted mb-3">${element.Bem}</p>` : ""}
-                    <div class="row align-items-end mb-2">
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold" for="antwort-dropdown-${idx}">Ihre Antwort</label>
-                            <select class="form-select antwort-dropdown" id="antwort-dropdown-${idx}" data-id="${element.ID}">
-                                <option value="">---</option>
-                                <option value="ja">Ja</option>
-                                <option value="nein">Nein</option>
-                                <option value="unsicher">Unsicher</option>
-                            </select>
-                        </div>
+    if (element.type === "Frage") {
+        html = `
+        <div class="card shadow rounded-4 border-0 mb-4 frage-block" data-flow-index="${idx}">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-question-circle text-primary me-2 fs-2"></i>
+                    <h5 class="mb-0 text-primary">${element.Bez}</h5>
+                </div>
+                <p class="fs-5 mb-4">${element.Text}</p>
+                ${element.Bem ? `<p class="fst-italic text-muted mb-3">${element.Bem}</p>` : ""}
+                <div class="row align-items-end mb-2">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold" for="antwort-dropdown-${idx}">Ihre Antwort</label>
+                        <select class="form-select antwort-dropdown" id="antwort-dropdown-${idx}" data-id="${element.ID}">
+                            <option value="">---</option>
+                            <option value="ja">Ja</option>
+                            <option value="nein">Nein</option>
+                            <option value="unsicher">Unsicher</option>
+                        </select>
                     </div>
                 </div>
-            </div>`;
-        } else if (element.type === "Antwort" || element.type === "Prompt") {
-            // For Prompt, show context inputs + call button
-            const promptExtras = element.type === "Prompt" ? `
-                <div class="mb-3">
-                    <label class="form-label">Ihre Angaben</label>
-                    <textarea class="form-control" id="user-input-${idx}" rows="3" placeholder="Eigene Angaben / Kontext …"></textarea>
+            </div>
+        </div>`;
+    }
+    else if (element.type === "Antwort") {
+        // Show answer content as before (keep restart here)
+        html = `
+        <div class="card shadow rounded-4 border-0 mb-4 antwort-block" data-flow-index="${idx}">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-chat-left-quote text-success me-2 fs-2"></i>
+                    <h5 class="mb-0 text-success">${element.Bez}</h5>
+                </div>
+                <p class="fs-5 mb-4">${element.Text || ""}</p>
+                <button id="restart-btn" class="btn btn-outline-primary rounded-3 mt-2">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Nochmal starten
+                </button>
+            </div>
+        </div>`;
+    }
+    else if (element.type === "Prompt") {
+        // Slim prompt UI: no Bez/Text, no restart
+        html = `
+        <div class="card shadow rounded-4 border-0 mb-4 antwort-block" data-flow-index="${idx}">
+            <div class="card-body p-4">
+                <div class="mb-2">
+                    <label class="form-label" for="prompt-input-${idx}">
+                        Fragen Sie SANDy, die Sandbox-KI. Bitte beschreiben Sie die Art der Daten, die in Ihrem Unternehmen verarbeitet werden.
+                    </label>
+                    <input type="text" class="form-control" id="prompt-input-${idx}" placeholder="Ihre Beschreibung für SANDy..." />
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Dokumententext (optional)</label>
-                    <textarea class="form-control" id="doc-text-${idx}" rows="3" placeholder="Relevante Textauszüge …"></textarea>
+                    <label class="form-label" for="file-input-${idx}">
+                        (Optional): Stellen Sie SANDy Dokumente zur Auswertung zur Verfügung:
+                    </label>
+                    <input type="file" class="form-control" id="file-input-${idx}" accept="application/pdf" />
                 </div>
                 <div class="mb-3">
                     <button class="btn btn-primary run-llm-btn"
@@ -58,30 +81,14 @@
                         <i class="bi bi-stars me-1"></i>Empfehlung anfordern
                     </button>
                 </div>
-                <div id="llm-result-${idx}" class="border rounded p-3" style="display:none;"></div>
-            ` : "";
-
-            html = `
-            <div class="card shadow rounded-4 border-0 mb-4 antwort-block" data-flow-index="${idx}">
-                <div class="card-body p-4">
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="bi bi-chat-left-quote text-${element.type === "Prompt" ? "warning" : "success"} me-2 fs-2"></i>
-                        <h5 class="mb-0 text-${element.type === "Prompt" ? "warning" : "success"}">${element.Bez}</h5>
-                    </div>
-                    <p class="fs-5 mb-4">${element.Text || element.System || ""}</p>
-                    ${element.DSGVO ? `<p class="fst-italic text-muted mb-3">${element.DSGVO}</p>` : ""}
-                    ${element.Task ? `<div class="mb-3"><span class="fw-semibold">Aufgabe: </span>${element.Task}</div>` : ""}
-                    ${promptExtras}
-                    <button id="restart-btn" class="btn btn-outline-primary rounded-3 mt-2">
-                        <i class="bi bi-arrow-clockwise me-1"></i>Nochmal starten
-                    </button>
-                </div>
-            </div>`;
-        }
-
-        $('#frage-history').append(html);
-        $('html, body').animate({ scrollTop: $(document).height() }, 400);
+                <div id="llm-result-${idx}" class="output-box"></div>
+            </div>
+        </div>`;
     }
+
+    $('#frage-history').append(html);
+    $('html, body').animate({ scrollTop: $(document).height() }, 400);
+}
 
     function loadInitialFrage() {
         $.get('/get_initial_frage', function(data) {
@@ -142,33 +149,53 @@
         });
     });
 
-    // NEW: handle "Empfehlung anfordern" for Prompt
-    $('#frage-history').on('click', '.run-llm-btn', function() {
-        const idx = $(this).data('idx');
-        const promptId = $(this).data('prompt-id');
-        const userInput = $(`#user-input-${idx}`).val() || "";
-        const docText = $(`#doc-text-${idx}`).val() || "";
+    // Handle "Empfehlung anfordern" for Prompt — with spinner
+    $('#frage-history').on('click', '.run-llm-btn', function (e) {
+      e.preventDefault();
+      const $btn = $(this);
+      const idx = $btn.data('idx');
+      const promptId = $btn.data('prompt-id');
 
-        const $result = $(`#llm-result-${idx}`);
-        $result.hide().text('');
+      const userInput = $(`#prompt-input-${idx}`).val() || "";
+      const fileEl = $(`#file-input-${idx}`)[0];
+      const file = fileEl && fileEl.files ? fileEl.files[0] : null;
 
-        $.ajax({
-            url: '/run_prompt',
-            type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({
-                prompt_id: promptId,
-                user_input: userInput,
-                document_text: docText
-            }),
-            success: function(data) {
-                const promptPreview = data.prompt ? `<div class="mb-2"><strong>Prompt (Vorschau):</strong><br><pre class="mb-0" style="white-space:pre-wrap;">${data.prompt}</pre></div>` : '';
-                const llmResult = data.result ? `<div><strong>Antwort:</strong><br>${data.result}</div>` : '';
-                $result.html(promptPreview + llmResult).show();
-            },
-            error: function(xhr) {
-                $result.text('Fehler beim Ausführen des Prompts.').show();
-            }
+      const $result = $(`#llm-result-${idx}`);
+      const spinner = `
+        <div class="d-flex align-items-center gap-2">
+          <div class="spinner-border" role="status" aria-label="Berechnung läuft"></div>
+          <span>Bitte warten – die Empfehlung wird berechnet…</span>
+        </div>
+      `;
+
+      // show spinner + disable button
+      $result.html(spinner).css('display', 'block');
+      $btn.prop('disabled', true).addClass('disabled');
+
+      const formData = new FormData();
+      formData.append('prompt_id', String(promptId));
+      formData.append('user_input', userInput);
+      if (file) formData.append('file', file);
+
+      fetch('/run_prompt', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+          let html;
+          if (data.result) {
+            html = `<div><strong>Antwort:</strong><br>${data.result}</div>`;
+          } else if (data.error) {
+            html = `Fehler: ${data.error}`;
+          } else {
+            html = "Keine Antwort erhalten.";
+          }
+          $result.html(html);
+        })
+        .catch(() => {
+          $result.html('Fehler beim Ausführen des Prompts.');
+        })
+        .finally(() => {
+          // re-enable button
+          $btn.prop('disabled', false).removeClass('disabled');
         });
     });
 
