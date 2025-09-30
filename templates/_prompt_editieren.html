@@ -42,7 +42,7 @@
           </label>
         </div>
 
-        <!-- Dropdown für Frage (zeigt 'bez: text') -->
+        <!-- Dropdown für Frage (zeigt 'bez: text', Wert ist ebenfalls dieser String) -->
         <div class="mb-3">
           <select class="form-select rounded-3" id="frageDropdown" name="frageDropdown">
             <option value="">-- Bitte wählen --</option>
@@ -91,14 +91,15 @@
 </div>
 
 <script>
-  // Helpers
+  // --- Helpers ---
+
   function fillPromptDropdown() {
     const dd = document.getElementById("bezDropdown");
     return fetch("/get_prompts")
       .then(r => r.json())
       .then(list => {
         // sort by Bez (case-insensitive)
-        list.sort((a,b) => a.Bez.toLowerCase().localeCompare(b.Bez.toLowerCase()));
+        list.sort((a, b) => (a.Bez || "").toLowerCase().localeCompare((b.Bez || "").toLowerCase()));
         dd.innerHTML = '<option value="">-- Bitte wählen --</option>';
         list.forEach(p => {
           const opt = document.createElement("option");
@@ -109,7 +110,6 @@
       });
   }
 
-  let fragenLoaded = false;
   function fillFragenDropdown(selectedDisplay) {
     const sel = document.getElementById("frageDropdown");
     return fetch("/fragen_dropdown")
@@ -118,25 +118,25 @@
         sel.innerHTML = '<option value="">-- Bitte wählen --</option>';
         items.forEach(it => {
           const opt = document.createElement("option");
-          opt.value = it.display;       // "bez: text"
-          opt.textContent = it.display;
+          opt.value = it.display;       // value is the "bez: text" string
+          opt.textContent = it.display; // display matches value
           sel.appendChild(opt);
         });
-        fragenLoaded = true;
 
-        // Preselect saved Frage if provided
         if (selectedDisplay) {
-          const found = Array.from(sel.options).find(o => o.value === selectedDisplay || o.textContent === selectedDisplay);
+          // preselect saved Frage; if missing, add it temporarily so the user sees it
+          const found = Array.from(sel.options).find(o => o.value === selectedDisplay);
           if (found) {
-            sel.value = found.value;
+            sel.value = selectedDisplay;
           } else {
-            // Saved value not present anymore -> keep it selectable
             const extra = new Option(selectedDisplay, selectedDisplay, true, true);
             sel.add(extra, 1);
           }
         }
       });
   }
+
+  // --- Event wiring ---
 
   document.addEventListener("DOMContentLoaded", function() {
     // tooltips
@@ -145,10 +145,21 @@
       return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 
-    // load dropdowns
-    Promise.all([fillPromptDropdown(), fillFragenDropdown("")]).catch(console.error);
+    // Load dropdowns first
+    const init = Promise.all([fillPromptDropdown(), fillFragenDropdown("")]);
 
-    // when selecting a prompt, load its data
+    // If page opened with ?id=<PROMPT_ID>, preselect and load it
+    init.then(() => {
+      const params = new URLSearchParams(window.location.search);
+      const preId = params.get('id');
+      if (preId) {
+        const sel = document.getElementById("bezDropdown");
+        sel.value = preId;
+        sel.dispatchEvent(new Event('change'));
+      }
+    });
+
+    // When selecting a prompt, load its data
     document.getElementById("bezDropdown").addEventListener("change", function() {
       const id = this.value;
       if (!id) return;
@@ -156,31 +167,20 @@
       fetch(`/get_prompt/${id}`)
         .then(r => r.json())
         .then(data => {
-          // set fields
           document.getElementById("bez").value = data.Bez || "";
           document.getElementById("dsgvo").value = data.DSGVO || "";
 
-          // ensure Fragen dropdown options exist (then preselect)
-          const wanted = data.Frage || "";
-          if (!fragenLoaded) {
-            fillFragenDropdown(wanted);
-          } else {
-            const sel = document.getElementById("frageDropdown");
-            const found = Array.from(sel.options).find(o => o.value === wanted || o.textContent === wanted);
-            if (found) {
-              sel.value = found.value;
-            } else if (wanted) {
-              const extra = new Option(wanted, wanted, true, true);
-              sel.add(extra, 1);
-            } else {
-              sel.value = "";
-            }
-          }
+          const wanted = data.Frage || ""; // saved "bez: text"
+          // Refill Fragen list and preselect saved value
+          return fillFragenDropdown(wanted);
         })
-        .catch(err => console.error("Fehler beim Laden des Prompts:", err));
+        .catch(err => {
+          console.error("Fehler beim Laden des Prompts:", err);
+          document.getElementById("statusMessage").textContent = "Fehler beim Laden des Prompts.";
+        });
     });
 
-    // submit updates
+    // Submit updates
     document.getElementById("promptForm").addEventListener("submit", function(event) {
       event.preventDefault();
       const id = document.getElementById("bezDropdown").value;
@@ -204,8 +204,8 @@
       .then(r => r.json())
       .then(data => {
         document.getElementById("statusMessage").textContent = data.message || "Gespeichert.";
-        // Refresh main dropdown names (in case Bez changed)
-        fillPromptDropdown();
+        // refresh the prompt list in case Bez changed
+        return fillPromptDropdown();
       })
       .catch(err => {
         console.error("Fehler:", err);

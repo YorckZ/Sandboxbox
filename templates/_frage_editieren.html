@@ -235,6 +235,15 @@
         });
 
         initAllBez(); // prefill the filtered option lists
+        // after initAllBez() etc.
+        const params = new URLSearchParams(window.location.search);
+        const preId = params.get('id');
+        if (preId) {
+          const sel = document.getElementById("frageSelect");
+          sel.value = preId;
+          loadFrage();
+        }
+
     });
 </script>
 {% endblock %}

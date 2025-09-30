@@ -380,6 +380,50 @@ def get_all_fragen_for_dropdown():
     close_connection(conn)
     return [{"ID": r[0], "Bez": r[1], "Text": r[2], "Display": f"{r[1]}: {r[2]}"} for r in rows]
 
+def get_all_elements_with_edges():
+    """
+    Return all elements (Frage/Antwort/Prompt) with their Bez and, for Fragen, their edges.
+    Uses tbl_elemente.ID as the canonical node id.
+    """
+    conn, cursor = open_connection()
+    cursor.execute("""
+        SELECT
+            e.ID            AS ElementID,
+            e.table_id      AS TableID,
+            e.foreign_id    AS ForeignID,
+            CASE
+              WHEN e.table_id = 1 THEN f.Bez
+              WHEN e.table_id = 2 THEN a.Bez
+              WHEN e.table_id = 3 THEN p.Bez
+            END             AS Bez,
+            f.Ja            AS Ja,
+            f.Nein          AS Nein,
+            f.Unsicher      AS Unsicher,
+            f.Initial       AS Initial
+        FROM tbl_elemente e
+        LEFT JOIN tbl_fragen    f ON e.table_id = 1 AND f.ID = e.foreign_id
+        LEFT JOIN tbl_antworten a ON e.table_id = 2 AND a.ID = e.foreign_id
+        LEFT JOIN tbl_prompts   p ON e.table_id = 3 AND p.ID = e.foreign_id
+        ORDER BY Bez COLLATE NOCASE ASC
+    """)
+    rows = cursor.fetchall()
+    close_connection(conn)
+
+    results = []
+    for r in rows:
+        results.append({
+            "ElementID": r[0],
+            "TableID": r[1],          # 1=Frage, 2=Antwort, 3=Prompt
+            "ForeignID": r[2],
+            "Bez": r[3] or "",
+            "Ja": r[4],
+            "Nein": r[5],
+            "Unsicher": r[6],
+            "Initial": r[7] if r[7] is not None else 0,  # 0/1 from SQLite
+        })
+    return results
+
+
 # ===========================================================================================================
 
 def create_antwort(bez: str, text: str):

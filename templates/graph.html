@@ -1,0 +1,29 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="container my-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Fragen–Antworten–Prompts (Graph)</h2>
+    <button class="btn btn-outline-secondary" id="refresh-graph">
+      <i class="bi bi-arrow-clockwise me-1"></i> Aktualisieren
+    </button>
+  </div>
+
+  <div class="card shadow rounded-4 border-0">
+    <div class="card-body">
+      <div class="ratio ratio-16x9">
+        <object id="graph-object" type="image/svg+xml" data="/graph.svg"></object>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Force reload without cache when clicking refresh
+  document.getElementById('refresh-graph').addEventListener('click', () => {
+    const obj = document.getElementById('graph-object');
+    const bust = Date.now();
+    obj.data = '/graph.svg?ts=' + bust;
+  });
+</script>
+{% endblock %}

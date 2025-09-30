@@ -7,14 +7,19 @@ from flask import Flask, render_template, request, jsonify
 # import json
 import webbrowser
 import threading
-import os
+# import os
 # import io
 # import PyPDF2
 # import sqlite3
 import database.database_logic as db
 import os
 import requests
-from werkzeug.utils import secure_filename
+# from werkzeug.utils import secure_filename
+# import PyPDF2
+import graphviz
+from flask import Response
+from graphviz import Digraph
+
 
 # <editor-fold desc="Basic code functionality">
 app = Flask(__name__)
@@ -88,6 +93,106 @@ def next_element():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/graph")
+def graph_page():
+    # Simple page that embeds the SVG
+    return render_template("graph.html")
+
+@app.route("/graph.svg")
+def graph_svg():
+    data = db.get_all_elements_with_edges()
+
+    dot = Digraph("SAT", format="svg")
+    dot.attr(rankdir="LR", fontname="Helvetica")
+    # make links open the whole page, not inside the <object>
+    dot.attr('node', target="_top")
+
+    shape_map = {1: "circle", 2: "box", 3: "triangle"}
+    fill_map  = {1: "#E3F2FD", 2: "#E8F5E9", 3: "#FFF3E0"}
+
+    BLUE   = "#1976D2"  # Initialfrage
+    GREEN  = "#2E7D32"
+    RED    = "#C62828"
+    YELLOW = "#F9A825"
+
+    # collect incoming targets and initial id
+    incoming = set()
+    for item in data:
+        if item["TableID"] == 1:
+            for tgt in (item["Ja"], item["Nein"], item["Unsicher"]):
+                if tgt:
+                    incoming.add(str(tgt))
+
+    initial_eid = next((str(x["ElementID"]) for x in data
+                        if x["TableID"] == 1 and x.get("Initial")), None)
+
+    # NODES (CLICKABLE)
+    for item in data:
+        nid   = str(item["ElementID"])     # node id in graph
+        t_id  = item["TableID"]            # 1=Frage, 2=Antwort, 3=Prompt
+        fid   = str(item["ForeignID"])     # content id for editor routes
+        label = item["Bez"] or f"ID {nid}"
+
+        # Build edit URL per type (passes ?id=<content-id>)
+        if t_id == 1:
+            node_url = f"/edit_frage?id={fid}"
+        elif t_id == 2:
+            node_url = f"/edit_antwort?id={fid}"
+        else:
+            node_url = f"/edit_prompt?id={fid}"
+
+        attrs = {
+            "shape": shape_map.get(t_id, "ellipse"),
+            "style": "filled",
+            "fillcolor": fill_map.get(t_id, "#FFFFFF"),
+            "URL": node_url,            # <-- makes the node clickable
+            "tooltip": node_url,        # nice hover hint
+        }
+
+        # precedence: thick borders first
+        locked = False
+        if t_id == 1 and item.get("Initial"):
+            attrs["color"] = BLUE
+            attrs["penwidth"] = "3"
+            locked = True
+        elif nid not in incoming:
+            attrs["color"] = RED
+            attrs["penwidth"] = "3"
+            locked = True
+
+        # secondary styling (don’t overwrite thick ones)
+        if not locked:
+            if t_id in (2, 3):  # Antworten & Prompts
+                if nid in incoming:
+                    attrs["color"] = GREEN
+                    attrs["penwidth"] = "1.5"
+            elif t_id == 1:     # Fragen
+                out_count = sum(1 for v in (item["Ja"], item["Nein"], item["Unsicher"]) if v)
+                if out_count == 3:
+                    attrs["color"] = GREEN
+                    attrs["penwidth"] = "1.5"
+                else:
+                    attrs["color"] = YELLOW
+                    attrs["penwidth"] = "1.5"
+
+        dot.node(nid, label=label, **attrs)
+
+    # EDGES
+    for item in data:
+        if item["TableID"] != 1:
+            continue
+        src = str(item["ElementID"])
+        for edge_label, tgt in (("Ja", item["Ja"]), ("Nein", item["Nein"]), ("Unsicher", item["Unsicher"])):
+            if tgt:
+                dot.edge(src, str(tgt), label=edge_label)
+
+    svg = dot.pipe(format="svg")
+    return Response(svg, mimetype="image/svg+xml", headers={"Cache-Control": "no-store"})
+
+
+
+
 # </editor-fold>
 
 # ===========================================================================================================
@@ -533,10 +638,10 @@ def run_prompt():
             return jsonify({"error": "Prompt nicht gefunden"}), 404
 
         # A/B/F fixed parts
-        preA = ("Du bist Experte für Datenschutz und sollst eine Empfehlung aussprechen. "
+        pre_a = ("Du bist Experte für Datenschutz und sollst eine Empfehlung aussprechen. "
                 "Dem Benutzer wurde folgende Frage gestellt:")
-        preB = "Der Nutzer ist sich nicht sicher. Der entsprechende Rechtstext lautet:"
-        instrF = ("Gib eine Empfehlung, ob die DSGVO zutrifft. Antworte zunächst nur mit Ja oder Nein. "
+        pre_b = "Der Nutzer ist sich nicht sicher. Der entsprechende Rechtstext lautet:"
+        instr_f = ("Gib eine Empfehlung, ob die DSGVO zutrifft. Antworte zunächst nur mit Ja oder Nein. "
                   "Anschließend begründe Deine Einschätzung. Zuletzt weise darauf hin, dass Du nur eine KI bist "
                   "und dass dies keine Rechtsberatung darstellt.")
 
@@ -550,17 +655,17 @@ def run_prompt():
 
         # Build the final user prompt (not returned to client)
         parts = [
-            preA,
+            pre_a,
             frage_text,
             "",
-            preB,
+            pre_b,
             dsgvo_str,
             "",
             f"Er hat hierzu folgendes angegeben: {user_input}" if user_input else "Es wurden keine zusätzlichen Angaben gemacht.",
         ]
         if combined_doc_text:
             parts.append("(Optional:) Weiterhin hat er folgende Dokumenteninhalte bereitgestellt:\n" + combined_doc_text)
-        parts.extend(["", instrF])
+        parts.extend(["", instr_f])
         full_prompt = "\n".join(parts).strip()
 
         # Call local Ollama
