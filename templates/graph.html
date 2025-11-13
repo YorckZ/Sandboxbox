@@ -4,9 +4,14 @@
 <div class="container my-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2 class="mb-0">Fragen–Antworten–Prompts (Graph)</h2>
-    <button class="btn btn-outline-secondary" id="refresh-graph">
-      <i class="bi bi-arrow-clockwise me-1"></i> Aktualisieren
-    </button>
+    <div class="d-flex gap-2">
+      <a href="/dashboard" class="btn btn-primary">
+        <i class="bi bi-speedometer2 me-1"></i> Dashboard
+      </a>
+      <button class="btn btn-outline-secondary" id="refresh-graph">
+        <i class="bi bi-arrow-clockwise me-1"></i> Aktualisieren
+      </button>
+    </div>
   </div>
 
   <div class="card shadow rounded-4 border-0">
@@ -22,8 +27,7 @@
   // Force reload without cache when clicking refresh
   document.getElementById('refresh-graph').addEventListener('click', () => {
     const obj = document.getElementById('graph-object');
-    const bust = Date.now();
-    obj.data = '/graph.svg?ts=' + bust;
+    obj.data = '/graph.svg?ts=' + Date.now();
   });
 </script>
 {% endblock %}

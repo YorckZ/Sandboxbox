@@ -1,28 +1,18 @@
-from flask import Flask, render_template, request, jsonify
-# from openai import OpenAI
-# from dotenv import load_dotenv
-# from flask import Flask, request, jsonify, render_template, redirect, url_for
-# from werkzeug.utils import secure_filename
-# import requests
-# import json
-import webbrowser
-import threading
-# import os
-# import io
-# import PyPDF2
-# import sqlite3
-import database.database_logic as db
 import os
-import requests
-# from werkzeug.utils import secure_filename
-# import PyPDF2
-import graphviz
-from flask import Response
+import threading
+import webbrowser
+
+from flask import Flask, Response, render_template, request, jsonify
 from graphviz import Digraph
+import requests
+
+import database.database_logic as db
 
 
 # <editor-fold desc="Basic code functionality">
 app = Flask(__name__)
+# from openai import OpenAI
+# from dotenv import load_dotenv
 # UPLOAD_FOLDER = 'uploads'
 # app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -56,6 +46,38 @@ def new():
     # Self-Assessment Tool Page (new style)
     return render_template('new.html')
 
+@app.route('/dashboard')
+def dashboard():
+    return render_template('dashboard.html')
+
+@app.route("/counts")
+def counts():
+    try:
+        # Use lightweight count queries; avoids fetching full rows
+        conn, cursor = db.open_connection()
+        cursor.execute("SELECT COUNT(*) FROM tbl_fragen");   n1 = cursor.fetchone()[0] or 0
+        cursor.execute("SELECT COUNT(*) FROM tbl_antworten"); n2 = cursor.fetchone()[0] or 0
+        cursor.execute("SELECT COUNT(*) FROM tbl_prompts");   n3 = cursor.fetchone()[0] or 0
+        db.close_connection(conn)
+        return jsonify({"fragen": n1, "antworten": n2, "prompts": n3})
+    except Exception as e:
+        return jsonify({"message": f"Fehler: {str(e)}"}), 500
+
+@app.route("/initial_frage_meta")
+def initial_frage_meta():
+    """
+    Returns the content-table ID, Bez, and Text of the Initialfrage.
+    { "id": <tbl_fragen.ID>, "bez": "<Bez>", "text": "<Text>" }
+    404 if none is set.
+    """
+    conn, cursor = db.open_connection()
+    cursor.execute("SELECT ID, Bez, Text FROM tbl_fragen WHERE Initial = 1 LIMIT 1")
+    row = cursor.fetchone()
+    db.close_connection(conn)
+    if not row:
+        return jsonify({"message": "Keine Startfrage gesetzt."}), 404
+    return jsonify({"id": row[0], "bez": row[1], "text": row[2]})
+
 @app.route('/next_element', methods=['POST'])
 def next_element():
     try:
@@ -68,22 +90,14 @@ def next_element():
         if not frage:
             return jsonify({"error": "Frage nicht gefunden"}), 404
 
-        # # Map answer to the correct dict key (unsicher is lower-case in DB dict)
-        # key_map = {'ja': 'Ja', 'nein': 'Nein', 'unsicher': 'unsicher'}
-        # key = key_map.get(antwort)
-        # if not key:
-        #     return jsonify({"error": "Ungültige Antwort"}), 400
-
         # Determine the next element's ID based on the user's answer
         next_id = frage.get(antwort.capitalize())  # 'Ja', 'Nein', 'Unsicher' as column names
-        # next_id = frage.get(key)
 
         if not next_id:
             # return jsonify({"done": True})  # End, or Absage/Zusage if you want
             return jsonify({"done": True, "message": "Keine weitere Frage. Fragebogen ist beendet."})
 
         # Now check: what type of element is next_id? (Frage, Antwort, Prompt)
-        # Let's say you have a function like this:
         next_e = db.get_element_by_id(next_id)
         if not next_e:
             return jsonify({"error": "Element nicht gefunden"}), 404
@@ -190,6 +204,74 @@ def graph_svg():
     svg = dot.pipe(format="svg")
     return Response(svg, mimetype="image/svg+xml", headers={"Cache-Control": "no-store"})
 
+@app.route("/graph_status")
+def graph_status():
+    """
+    Dashboard graph health (DISJOINT sets):
+      - yellow: Fragen with < 3 outgoing edges (exclude Initialfrage),
+                EXCLUDING any that are also red
+      - red   : elements (any type) with no incoming edge, excluding Initialfrage
+    """
+    try:
+        conn, cursor = db.open_connection()
+
+        cursor.execute("""
+            WITH
+            incoming(tgt) AS (
+                SELECT Ja     FROM tbl_fragen WHERE Ja     IS NOT NULL
+                UNION
+                SELECT Nein   FROM tbl_fragen WHERE Nein   IS NOT NULL
+                UNION
+                SELECT Unsicher FROM tbl_fragen WHERE Unsicher IS NOT NULL
+            ),
+            initial_elem(eid) AS (
+                SELECT e.ID
+                FROM tbl_elemente e
+                JOIN tbl_fragen f ON e.table_id = 1 AND e.foreign_id = f.ID
+                WHERE f.Initial = 1
+                LIMIT 1
+            ),
+            red_elems(id) AS (
+                SELECT e.ID
+                FROM tbl_elemente e
+                LEFT JOIN incoming i    ON e.ID = i.tgt
+                LEFT JOIN initial_elem ie ON e.ID = ie.eid
+                WHERE i.tgt IS NULL      -- no incoming edge
+                  AND ie.eid IS NULL     -- not the Initialfrage element
+            ),
+            yellow_candidates(id) AS (
+                SELECT e.ID
+                FROM tbl_elemente e
+                JOIN tbl_fragen f ON e.table_id = 1 AND e.foreign_id = f.ID
+                WHERE (f.Ja IS NULL OR f.Nein IS NULL OR f.Unsicher IS NULL)
+                  AND IFNULL(f.Initial, 0) = 0
+            ),
+            yellow_final(id) AS (
+                SELECT yc.id
+                FROM yellow_candidates yc
+                WHERE yc.id NOT IN (SELECT id FROM red_elems)  -- RED supersedes YELLOW
+            )
+            SELECT
+                (SELECT COUNT(*) FROM yellow_final) AS yellow,
+                (SELECT COUNT(*) FROM red_elems)    AS red
+            ;
+        """)
+
+        row = cursor.fetchone()
+        yellow = int(row[0]) if row and row[0] is not None else 0
+        red    = int(row[1]) if row and row[1] is not None else 0
+
+        db.close_connection(conn)
+
+        resp = jsonify({"yellow": yellow, "red": red})
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        return resp
+
+    except Exception as e:
+        return jsonify({"message": f"Fehler: {str(e)}"}), 500
+
+
 
 
 
@@ -244,19 +326,6 @@ def edit_frage():
 
 @app.route("/all_bez")
 def all_bez():
-    # fragen = db.get_all_fragen()
-    # antworten = db.get_all_antworten()
-    # prompts = db.get_all_prompts()
-    #
-    # # get all Bez, add table type and ID if you want (for lookup purposes)
-    # bez_list = []
-    # for row in fragen:
-    #     bez_list.append({"Bez": row["Bez"], "type": "Frage", "ID": row["ID"]})
-    # for row in antworten:
-    #     bez_list.append({"Bez": row["Bez"], "type": "Antwort", "ID": row["ID"]})
-    # for row in prompts:
-    #     bez_list.append({"Bez": row["Bez"], "type": "Prompt", "ID": row["ID"]})
-
     # unified list with tbl_elemente.ID so flows work
     bez_list = db.get_all_bez_with_element_ids()
 
@@ -268,8 +337,7 @@ def all_bez():
 def get_fragen():
     try:
         fragen = db.get_all_fragen()
-        # return jsonify([{"ID": row[0], "Bez": row[1]} for row in fragen])
-        return jsonify(fragen)  # already [{"ID":..., "Bez":...}]
+        return jsonify(fragen)
     except Exception as e:
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
 
@@ -434,20 +502,7 @@ def anlegen_prompt():
 @app.route('/save_prompt', methods=['POST'])
 def save_prompt():
     try:
-        # data = request.get_json()
-        #
-        # # Extract and sanitize input values
-        # bez = data.get("bez")
-        # system = data.get("system")
-        # dsgvo = data.get("dsgvo", "")
-        # task = data.get("task", "")
-        #
-        # # Call database function to insert the prompt
-        # db.create_prompt(bez, system, dsgvo, task)
-
         data = request.get_json() or {}
-
-        # Map frontend fields → DB fields
         bez = (data.get("bez") or "").strip()
         frage = (data.get("dropdown") or data.get("frage") or "").strip()
         dsgvo = data.get("c") or data.get("dsgvo") or ""
@@ -482,19 +537,7 @@ def get_prompt(prompt_id):
 @app.route("/update_prompt", methods=["POST"])
 def update_prompt():
     try:
-        # data = request.get_json()
-        # if not data.get("id") or not data.get("bez") or not data.get("system"):
-        #     return jsonify({"message": "Fehlende erforderliche Felder!"}), 400
-        #
-        # db.update_prompt(
-        #     prompt_id=data["id"],
-        #     bez=data["bez"],
-        #     system=data["system"],
-        #     dsgvo=data.get("dsgvo", ""),
-        #     task=data.get("task", "")
-        # )
         data = request.get_json() or {}
-
         prompt_id = data.get("id")
         if not prompt_id:
             return jsonify({"message": "ID fehlt."}), 400
@@ -517,71 +560,6 @@ def update_prompt():
         return jsonify({"message": "Prompt erfolgreich aktualisiert!"})
     except Exception as e:
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
-
-# @app.route('/run_prompt', methods=['POST'])
-# def run_prompt():
-#     try:
-#         # Accept both JSON and multipart/form-data
-#         prompt_id = None
-#         user_input = ""
-#         document_text = ""
-#
-#         if request.content_type and "application/json" in request.content_type:
-#             data = request.get_json() or {}
-#             prompt_id = data.get('prompt_id')
-#             user_input = (data.get('user_input') or '').strip()
-#             document_text = (data.get('document_text') or '').strip()
-#             uploaded_file = None
-#         else:
-#             prompt_id = request.form.get('prompt_id')
-#             user_input = (request.form.get('user_input') or '').strip()
-#             document_text = (request.form.get('document_text') or '').strip()
-#             uploaded_file = request.files.get('file')  # single PDF (optional)
-#
-#         if not prompt_id:
-#             return jsonify({"error": "prompt_id fehlt"}), 400
-#
-#         prompt = db.get_prompt_by_id(int(prompt_id))
-#         if not prompt:
-#             return jsonify({"error": "Prompt nicht gefunden"}), 404
-#
-#         # Static label text (from your prompt templates)
-#         preA = ("Du bist Experte für Datenschutz und sollst eine Empfehlung aussprechen. "
-#                 "Dem Benutzer wurde folgende Frage gestellt:")
-#         preB = "Der Nutzer ist sich nicht sicher. Der entsprechende Rechtstext lautet:"
-#         instrF = ("Gib eine Empfehlung, ob die DSGVO zutrifft. Antworte zunächst nur mit Ja oder Nein. "
-#                   "Anschließend begründe Deine Einschätzung. Zuletzt weise darauf hin, dass Du nur eine KI bist "
-#                   "und dass dies keine Rechtsberatung darstellt.")
-#
-#         frage_str = prompt.get("Frage", "") or ""
-#         dsgvo_str = prompt.get("DSGVO", "") or ""
-#
-#         parts = [
-#             preA,
-#             frage_str,
-#             "",
-#             preB,
-#             dsgvo_str,
-#             "",
-#             f"Er hat hierzu folgendes angegeben: {user_input}" if user_input else "Es wurden keine zusätzlichen Angaben gemacht.",
-#         ]
-#
-#         # If a file was provided, acknowledge it (plug in real PDF parsing later)
-#         if uploaded_file and uploaded_file.filename:
-#             parts.append(f"(Optional:) Weiterhin hat er folgende Dokumente bereitgestellt: {uploaded_file.filename}")
-#         elif document_text:
-#             parts.append("(Optional:)\nWeiterhin hat er folgende Dokumenteninhalte bereitgestellt: " + document_text)
-#
-#         parts.extend(["", instrF])
-#         full_prompt = "\n".join(parts).strip()
-#
-#         # Demo output placeholder
-#         demo_result = "⚠️ Demo: Hier würde jetzt die Antwort deines lokalen LLM erscheinen."
-#
-#         return jsonify({"prompt": full_prompt, "result": demo_result})
-#
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
 
 def _extract_pdf_text(file_storage) -> str:
     """Return plain text from the uploaded PDF (empty string if extraction fails)."""
@@ -699,11 +677,6 @@ def loeschen_prompt():
 
 @app.route("/delete_prompt/<int:prompt_id>", methods=["DELETE"])
 def delete_prompt(prompt_id):
-    # try:
-    #     db.delete_prompt(prompt_id)
-    #     return jsonify({"message": "Prompt erfolgreich gelöscht!"})
-    # except Exception as e:
-    #     return jsonify({"message": f"Fehler: {str(e)}"}), 500
     try:
         if db.prompt_is_referenced(prompt_id):
             return jsonify({"message": "Prompt wird noch von Fragen referenziert und kann nicht gelöscht werden."}), 400

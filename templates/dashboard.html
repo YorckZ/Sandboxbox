@@ -1,0 +1,197 @@
+{% extends "index.html" %}
+
+{% block content %}
+<style>
+  .dash-split { min-height: 70vh; }
+  .dash-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    column-gap: 16px;
+    row-gap: 0;
+  }
+  .dash-grid .btn { width: 100%; }
+  .grid-spacer { grid-column: 1 / -1; height: 48px; }
+  .stats-pre { white-space: pre-line; margin: 0; }
+</style>
+
+<div class="container-fluid my-4">
+  <div class="row">
+    <!-- Left half: actions card + Graph button -->
+    <div class="col-12 col-lg-6 dash-split d-flex flex-column align-items-stretch justify-content-center">
+      <div class="w-100">
+        <div class="card shadow rounded-4 border-0">
+          <div class="card-body">
+            <div class="dash-grid">
+              <!-- Fragen -->
+              <a href="/anlegen_frage"   class="btn btn-primary rounded-3 shadow-sm">Frage anlegen</a>
+              <a href="/edit_frage"      class="btn btn-primary rounded-3 shadow-sm">Frage editieren</a>
+              <a href="/loeschen_frage"  class="btn btn-primary rounded-3 shadow-sm">Frage löschen</a>
+
+              <div class="grid-spacer"></div>
+
+              <!-- Antworten -->
+              <a href="/anlegen_antwort"  class="btn btn-primary rounded-3 shadow-sm">Antwort anlegen</a>
+              <a href="/edit_antwort"     class="btn btn-primary rounded-3 shadow-sm">Antwort editieren</a>
+              <a href="/loeschen_antwort" class="btn btn-primary rounded-3 shadow-sm">Antwort löschen</a>
+
+              <div class="grid-spacer"></div>
+
+              <!-- Prompts -->
+              <a href="/anlegen_prompt"  class="btn btn-primary rounded-3 shadow-sm">Prompt anlegen</a>
+              <a href="/edit_prompt"     class="btn btn-primary rounded-3 shadow-sm">Prompt editieren</a>
+              <a href="/loeschen_prompt" class="btn btn-primary rounded-3 shadow-sm">Prompt löschen</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Graph button centered below the table card -->
+        <div class="d-flex justify-content-center mt-3">
+          <a href="/graph" class="btn btn-primary px-4 rounded-3 shadow-sm">
+            <i class="bi bi-diagram-3 me-1"></i>Graph
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right half: stats + startfrage + graph health -->
+    <div class="col-12 col-lg-6 dash-split d-flex flex-column justify-content-center">
+      <!-- 1) Counts -->
+      <div class="card shadow rounded-4 border-0 mb-4">
+        <div class="card-body">
+          <div class="border rounded p-3">
+            <div class="stats-pre" id="stats-text">Fragen: 0
+                                                  Antworten: 0
+                                                  Prompts: 0
+          </div>
+          </div>
+          <div class="d-flex justify-content-center mt-3">
+            <button id="btn-refresh-counts" class="btn btn-primary">
+              <i class="bi bi-arrow-clockwise me-1"></i>Aktualisieren
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2) Startfrage -->
+      <div class="card shadow rounded-4 border-0 mb-4">
+        <div class="card-body">
+          <h5 class="mb-2 text-center">Startfrage:</h5>
+          <div id="startfrage-bez" class="fs-5 text-muted text-center">—</div>
+          <div id="startfrage-text" class="mt-2 text-center">—</div>
+          <div class="d-flex justify-content-center mt-3">
+            <a id="startfrage-link" href="#" class="btn btn-primary disabled" aria-disabled="true">
+              <i class="bi bi-eye me-1"></i>Ansehen
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3) Graph health (yellow warnings & red errors) -->
+      <div id="graph-health-card" class="card shadow rounded-4 border-0">
+        <div class="card-body">
+          <div id="row-yellow" class="d-flex justify-content-center align-items-center gap-2 text-warning fs-5">
+            <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+            <span id="count-yellow">0</span>
+            <span>unvollständige Fragen</span>
+          </div>
+          <div id="row-red" class="d-flex justify-content-center align-items-center gap-2 text-danger fs-5 mt-2">
+            <i class="bi bi-lightning-fill" aria-hidden="true"></i>
+            <span id="count-red">0</span>
+            <span>unerreichbare Elemente</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  async function fetchCounts() {
+    const res = await fetch('/counts');
+    if (!res.ok) throw new Error('Counts fetch failed');
+    return res.json();
+  }
+
+  async function fetchInitialFrage() {
+    const res = await fetch('/initial_frage_meta');
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error('Initial frage fetch failed');
+    return res.json(); // { id, bez, text }
+  }
+
+  async function fetchGraphStatus() {
+    // const res = await fetch('/graph_status');
+    const res = await fetch('/graph_status?ts=' + Date.now());
+    if (!res.ok) throw new Error('Graph status fetch failed');
+    return res.json(); // { yellow, red }
+  }
+
+  function renderCounts(data) {
+    const txt = `Fragen: ${data.fragen}\nAntworten: ${data.antworten}\nPrompts: ${data.prompts}`;
+    document.getElementById('stats-text').textContent = txt;
+  }
+
+  function renderInitialFrage(meta) {
+    const bezEl = document.getElementById('startfrage-bez');
+    const txtEl = document.getElementById('startfrage-text');
+    const linkEl = document.getElementById('startfrage-link');
+
+    if (meta && meta.id && meta.bez) {
+      bezEl.textContent = meta.bez;
+      txtEl.textContent = meta.text || '—';
+      linkEl.href = `/edit_frage?id=${encodeURIComponent(meta.id)}`;
+      linkEl.classList.remove('disabled');
+      linkEl.removeAttribute('aria-disabled');
+    } else {
+      bezEl.textContent = '—';
+      txtEl.textContent = '—';
+      linkEl.href = '#';
+      linkEl.classList.add('disabled');
+      linkEl.setAttribute('aria-disabled', 'true');
+    }
+  }
+
+  function renderGraphStatus(s) {
+    const yellow = Number(s?.yellow ?? 0);
+    const red    = Number(s?.red ?? 0);
+
+    const card   = document.getElementById('graph-health-card');
+    const rowY   = document.getElementById('row-yellow');
+    const rowR   = document.getElementById('row-red');
+
+    // Update numbers
+    document.getElementById('count-yellow').textContent = yellow;
+    document.getElementById('count-red').textContent    = red;
+
+    // Show/hide rows
+    rowY.style.display = yellow > 0 ? '' : 'none';
+    rowR.style.display = red    > 0 ? '' : 'none';
+
+    // Show/hide whole card
+    const anyVisible = (yellow > 0) || (red > 0);
+    card.style.display = anyVisible ? '' : 'none';
+  }
+
+  async function refreshRightPane() {
+    try {
+      const [counts, initial, status] = await Promise.all([
+        fetchCounts(),
+        fetchInitialFrage(),
+        fetchGraphStatus()
+      ]);
+      renderCounts(counts);
+      renderInitialFrage(initial);
+      renderGraphStatus(status);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('btn-refresh-counts').addEventListener('click', refreshRightPane);
+    refreshRightPane();
+  });
+</script>
+
+{% endblock %}
