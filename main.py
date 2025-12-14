@@ -696,6 +696,7 @@ def open_browser():
 
 if __name__ == '__main__':
     # print(app.url_map)
+    print("Starting...")
 
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         threading.Timer(1, open_browser).start()
