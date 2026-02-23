@@ -14,14 +14,35 @@
   .stats-pre { white-space: pre-line; margin: 0; }
 </style>
 
-<div class="container-fluid my-4">
+<!--<div class="container-fluid my-4">-->
+<div class="container-fluid my-4 px-5">
   <div class="row">
     <!-- Left half: actions card + Graph button -->
     <div class="col-12 col-lg-6 dash-split d-flex flex-column align-items-stretch justify-content-center">
       <div class="w-100">
+
+        <!-- NEW: Übersicht Card -->
+        <div class="card shadow rounded-4 border-0 mb-4 dashboard-overview-card">
+          <div class="card-body">
+            <div class="d-grid gap-3">
+              <a href="/fragen_liste" class="btn btn-primary rounded-3 shadow-sm">
+                Alle Fragen
+              </a>
+              <a href="/antworten_liste" class="btn btn-primary rounded-3 shadow-sm">
+                Alle Antworten
+              </a>
+              <a href="/prompts_liste" class="btn btn-primary rounded-3 shadow-sm">
+                Alle Prompts
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- EXISTING: Actions Card -->
         <div class="card shadow rounded-4 border-0">
           <div class="card-body">
             <div class="dash-grid">
+
               <!-- Fragen -->
               <a href="/anlegen_frage"   class="btn btn-primary rounded-3 shadow-sm">Frage anlegen</a>
               <a href="/edit_frage"      class="btn btn-primary rounded-3 shadow-sm">Frage editieren</a>

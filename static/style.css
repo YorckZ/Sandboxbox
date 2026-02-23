@@ -153,3 +153,8 @@ button:hover {
 .dropdown-y:hover .dropbtn {
     background-color: #4075C0;
 }
+
+/* Dashboard Übersicht card */
+.dashboard-overview-card {
+    background-color: #eef6ff; /* clearly brighter than white */
+}
