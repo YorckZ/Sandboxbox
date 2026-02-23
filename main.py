@@ -404,6 +404,10 @@ def fragen_dropdown():
     except Exception as e:
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
 
+@app.route("/fragen_liste")
+def fragen_liste():
+    return render_template("_fragen_liste.html")
+
 # </editor-fold>
 
 # ===========================================================================================================
@@ -489,6 +493,9 @@ def delete_antwort(antwort_id):
     except Exception as e:
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
 
+@app.route("/antworten_liste")
+def antworten_liste():
+    return render_template("_antworten_liste.html")
 # </editor-fold>
 
 # ===========================================================================================================
@@ -684,6 +691,10 @@ def delete_prompt(prompt_id):
         return jsonify({"message": "Prompt erfolgreich gelöscht!"})
     except Exception as e:
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
+
+@app.route("/prompts_liste")
+def prompts_liste():
+    return render_template("_prompts_liste.html")
 
 # </editor-fold>
 

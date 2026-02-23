@@ -314,12 +314,16 @@ def create_frage(bez: str, text: str, bem: str, ja: int, nein: int, unsicher: in
         close_connection(conn)
 
 def get_all_fragen():
-    """Fetches all questions' IDs and names from tbl_fragen."""
+    """Fetches all questions with ID, Bez and Text from tbl_fragen."""
     conn, cursor = open_connection()
-    cursor.execute("SELECT ID, Bez FROM tbl_fragen")
+    cursor.execute("SELECT ID, Bez, Text FROM tbl_fragen ORDER BY Bez COLLATE NOCASE ASC")
     fragen = cursor.fetchall()
     close_connection(conn)
-    return [{"ID": row[0], "Bez": row[1]} for row in fragen]
+
+    return [
+        {"ID": row[0], "Bez": row[1], "Text": row[2]}
+        for row in fragen
+    ]
 
 def get_frage_by_id(frage_id: int):
     """Fetches a single frage by ID."""
@@ -423,7 +427,6 @@ def get_all_elements_with_edges():
         })
     return results
 
-
 # ===========================================================================================================
 
 def create_antwort(bez: str, text: str):
@@ -443,9 +446,9 @@ def create_antwort(bez: str, text: str):
         close_connection(conn)
 
 def get_all_antworten():
-    """Fetches all antwort IDs and names from tbl_antworten."""
+    """Fetches all antwort IDs, names and text from tbl_antworten."""
     conn, cursor = open_connection()
-    cursor.execute("SELECT ID, Bez, Text FROM tbl_antworten")
+    cursor.execute("SELECT ID, Bez, Text FROM tbl_antworten ORDER BY Bez COLLATE NOCASE ASC")
     antworten = cursor.fetchall()
     close_connection(conn)
     return [{"ID": row[0], "Bez": row[1], "Text": row[2]} for row in antworten]
@@ -480,60 +483,6 @@ def delete_antwort(antwort_id: int):
 
 # ===========================================================================================================
 
-# def create_prompt(bez:str, system: str, dsgvo: str, task: str):
-#     conn = None
-#
-#     try:
-#         conn, cursor = open_connection()
-#         element_id: int = get_next_id()
-#         create_element(3, element_id)
-#
-#         cursor.execute("INSERT INTO tbl_prompts (ID, Bez, System, DSGVO, Task) VALUES (?, ?, ?, ?, ?);", (element_id, bez, system, dsgvo, task))
-#
-#         conn.commit()
-#     except Exception as e:
-#         print(e)
-#     finally:
-#         close_connection(conn)
-#
-# def get_all_prompts():
-#     """Fetches all prompts' IDs and names from tbl_prompts."""
-#     conn, cursor = open_connection()
-#     cursor.execute("SELECT ID, Bez FROM tbl_prompts")
-#     prompts = cursor.fetchall()
-#     close_connection(conn)
-#     return [{"ID": row[0], "Bez": row[1]} for row in prompts]
-#
-# def get_prompt_by_id(prompt_id):
-#     """Fetches a single prompt by ID."""
-#     conn, cursor = open_connection()
-#     cursor.execute("SELECT Bez, System, DSGVO, Task FROM tbl_prompts WHERE ID = ?", (prompt_id,))
-#     prompt = cursor.fetchone()
-#     close_connection(conn)
-#
-#     if prompt:
-#         return {"Bez": prompt[0], "System": prompt[1], "DSGVO": prompt[2], "Task": prompt[3]}
-#     return None
-#
-# def update_prompt(prompt_id, bez, system, dsgvo, task):
-#     """Updates an existing prompt."""
-#     conn, cursor = open_connection()
-#     cursor.execute("""
-#         UPDATE tbl_prompts SET Bez = ?, System = ?, DSGVO = ?, Task = ? WHERE ID = ?
-#     """, (bez, system, dsgvo, task, prompt_id))
-#     conn.commit()
-#     close_connection(conn)
-#
-# def delete_prompt(prompt_id):
-#     """Deletes a prompt from tbl_prompts based on the given ID."""
-#     conn, cursor = open_connection()
-#     delete_element(prompt_id)
-#     cursor.execute("DELETE FROM tbl_prompts WHERE ID = ?", (prompt_id,))
-#     conn.commit()
-#     close_connection(conn)
-
-# ===================== Prompts (new schema: Bez, Frage, DSGVO) =====================
-
 def create_prompt(bez: str, frage: str, dsgvo: str):
     conn = None
     try:
@@ -553,12 +502,16 @@ def create_prompt(bez: str, frage: str, dsgvo: str):
         close_connection(conn)
 
 def get_all_prompts():
-    """Fetches all prompts' IDs and names from tbl_prompts."""
+    """Fetches all prompts for listing/dropdowns."""
     conn, cursor = open_connection()
-    cursor.execute("SELECT ID, Bez FROM tbl_prompts")
+    cursor.execute("SELECT ID, Bez, Frage, DSGVO FROM tbl_prompts ORDER BY Bez COLLATE NOCASE ASC")
     prompts = cursor.fetchall()
     close_connection(conn)
-    return [{"ID": row[0], "Bez": row[1]} for row in prompts]
+
+    return [
+        {"ID": row[0], "Bez": row[1], "Frage": row[2], "DSGVO": row[3]}
+        for row in prompts
+    ]
 
 def get_prompt_by_id(prompt_id):
     """Fetches a single prompt by ID."""

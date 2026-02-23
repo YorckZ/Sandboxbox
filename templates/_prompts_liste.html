@@ -1,0 +1,151 @@
+{% extends 'index.html' %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+  <div class="card shadow rounded-4 border-0">
+    <div class="card-body p-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h2 class="mb-0 text-primary">
+          <i class="bi bi-card-text me-2"></i>Alle Prompts
+        </h2>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-primary rounded-3" href="/anlegen_prompt">
+            <i class="bi bi-plus-circle me-1"></i>Neu
+          </a>
+          <a class="btn btn-outline-primary rounded-3" href="/graph">
+            <i class="bi bi-diagram-3 me-1"></i>Graph
+          </a>
+        </div>
+      </div>
+
+      <div class="row g-2 mb-3">
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input id="filterInput" type="text" class="form-control" placeholder="Filtern nach Bez / Frage / DSGVO …">
+          </div>
+        </div>
+        <div class="col-md-6 text-md-end">
+          <span class="text-muted">
+            <i class="bi bi-info-circle me-1"></i>
+            Klick auf <i class="bi bi-pencil-square"></i> öffnet die Bearbeitung mit vorausgewähltem Prompt.
+          </span>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle" id="promptsTable">
+          <thead class="table-light">
+            <tr>
+              <th style="width:70px;">ID</th>
+              <th style="width:220px;">Bez</th>
+              <th>Frage</th>
+              <th>DSGVO</th>
+              <th class="text-center" style="width:90px;">Edit</th>
+            </tr>
+          </thead>
+          <tbody id="promptsTbody">
+            <!-- Filled by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <p id="statusMessage" class="mt-3 text-muted mb-0"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const tbody = document.getElementById("promptsTbody");
+  const statusMessage = document.getElementById("statusMessage");
+  const filterInput = document.getElementById("filterInput");
+
+  let promptsCache = [];
+
+  function escapeHtml(s) {
+    return (s ?? "")
+      .toString()
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function shortText(s, maxLen = 120) {
+    const t = (s ?? "").toString().trim();
+    if (!t) return "";
+    return t.length > maxLen ? (t.slice(0, maxLen) + " …") : t;
+  }
+
+  function renderRows(list) {
+    if (!list.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-center text-muted py-4">
+            Keine Prompts gefunden.
+          </td>
+        </tr>`;
+      return;
+    }
+
+    tbody.innerHTML = list.map(p => {
+      const id = p.ID;
+      const bez = escapeHtml(p.Bez);
+      const frage = escapeHtml(shortText(p.Frage || ""));
+      const dsgvo = escapeHtml(shortText(p.DSGVO || p.Dsgvo || ""));
+      return `
+        <tr>
+          <td class="text-muted">${id}</td>
+          <td><span class="fw-semibold">${bez}</span></td>
+          <td title="${escapeHtml(p.Frage || "")}">${frage}</td>
+          <td title="${escapeHtml(p.DSGVO || "")}">${dsgvo}</td>
+          <td class="text-center">
+            <a class="btn btn-sm btn-outline-primary rounded-3"
+               href="/edit_prompt?id=${encodeURIComponent(id)}"
+               title="Bearbeiten">
+              <i class="bi bi-pencil-square"></i>
+            </a>
+          </td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  function applyFilter() {
+    const q = (filterInput.value || "").trim().toLowerCase();
+    if (!q) return renderRows(promptsCache);
+
+    const filtered = promptsCache.filter(item => {
+      const bez = (item.Bez || "").toLowerCase();
+      const frage = (item.Frage || "").toLowerCase();
+      const dsgvo = (item.DSGVO || "").toLowerCase();
+      return bez.includes(q) || frage.includes(q) || dsgvo.includes(q);
+    });
+
+    renderRows(filtered);
+  }
+
+  function loadPrompts() {
+    statusMessage.textContent = "Lade Prompts …";
+    fetch("/get_prompts")
+      .then(r => r.json())
+      .then(data => {
+        promptsCache = Array.isArray(data) ? data : [];
+        statusMessage.textContent = `${promptsCache.length} Prompt(s) geladen.`;
+        renderRows(promptsCache);
+      })
+      .catch(err => {
+        console.error(err);
+        statusMessage.textContent = "Fehler beim Laden der Prompts.";
+        renderRows([]);
+      });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    loadPrompts();
+    filterInput.addEventListener("input", applyFilter);
+  });
+</script>
+{% endblock %}
