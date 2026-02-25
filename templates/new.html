@@ -8,6 +8,8 @@
     <div id="frage-history"></div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
     let flowIndex = 0;
@@ -41,30 +43,39 @@ function renderElement(element, idx) {
             </div>
         </div>`;
     }
+
     else if (element.type === "Antwort") {
-        // Show answer content as before (keep restart here)
-        html = `
-        <div class="card shadow rounded-4 border-0 mb-4 antwort-block" data-flow-index="${idx}">
-            <div class="card-body p-4">
-                <div class="d-flex align-items-center mb-2">
-                    <i class="bi bi-chat-left-quote text-success me-2 fs-2"></i>
-                    <h5 class="mb-0 text-success">${element.Bez}</h5>
-                </div>
-                <p class="fs-5 mb-4">${element.Text || ""}</p>
-                <button id="restart-btn" class="btn btn-outline-primary rounded-3 mt-2">
-                    <i class="bi bi-arrow-clockwise me-1"></i>Nochmal starten
-                </button>
-            </div>
-        </div>`;
+      html = `
+      <div class="card shadow rounded-4 border-0 mb-4 antwort-block" data-flow-index="${idx}">
+        <div class="card-body p-4">
+          <div class="d-flex align-items-center mb-2">
+            <i class="bi bi-chat-left-quote text-success me-2 fs-2"></i>
+            <h5 class="mb-0 text-success">${element.Bez}</h5>
+          </div>
+          <p class="fs-5 mb-4">${element.Text || ""}</p>
+
+          <div class="d-flex justify-content-end gap-2">
+            <button class="btn btn-outline-secondary rounded-3 download-history-pdf-btn">
+              <i class="bi bi-filetype-pdf me-1"></i>Verlauf als PDF herunterladen
+            </button>
+
+            <button class="btn btn-outline-primary rounded-3 contact-us-btn">
+                <i class="bi bi-envelope me-1"></i>Contact us
+            </button>
+
+          </div>
+
+        </div>
+      </div>`;
     }
+
     else if (element.type === "Prompt") {
-        // Slim prompt UI: no Bez/Text, no restart
         html = `
         <div class="card shadow rounded-4 border-0 mb-4 antwort-block" data-flow-index="${idx}">
             <div class="card-body p-4">
                 <div class="mb-2">
                     <label class="form-label" for="prompt-input-${idx}">
-                        Fragen Sie SANDy, die Sandbox-KI. Bitte beschreiben Sie die Art der Daten, die in Ihrem Unternehmen verarbeitet werden.
+                        Fragen Sie SANDy, die Sandbox-KI. Beschreiben Sie Ihre Gründe für und wider die Entscheidung und worin die Unsicherheit liegt, damit SANDy eine Empfehlung aussprechen kann.
                     </label>
                     <input type="text" class="form-control" id="prompt-input-${idx}" placeholder="Ihre Beschreibung für SANDy..." />
                 </div>
@@ -125,18 +136,28 @@ function renderElement(element, idx) {
                 antwort: antwort
             }),
             success: function(data) {
-                if (data.done) {
-                    $('#frage-history').append(`
-                    <div class="card shadow rounded-4 border-0 mb-4" data-flow-index="${flowIndex}">
-                        <div class="card-body p-4">
+                    if (data.done) {
+                      $('#frage-history').append(`
+                        <div class="card shadow rounded-4 border-0 mb-4" data-flow-index="${flowIndex}">
+                          <div class="card-body p-4">
                             <div class="alert alert-success mb-3">
-                                <i class="bi bi-check-circle me-2"></i>${data.message || "Fragebogen beendet."}
+                              <i class="bi bi-check-circle me-2"></i>${data.message || "Fragebogen beendet."}
                             </div>
-                            <button id="restart-btn" class="btn btn-outline-primary rounded-3">
-                                <i class="bi bi-arrow-clockwise me-1"></i>Nochmal starten
-                            </button>
+
+                            <div class="d-flex justify-content-end gap-2">
+                              <button class="btn btn-outline-secondary rounded-3 download-history-pdf-btn">
+                                <i class="bi bi-filetype-pdf me-1"></i>Verlauf als PDF herunterladen
+                              </button>
+                              <button class="btn btn-outline-primary rounded-3 contact-us-btn">
+                                <i class="bi bi-envelope me-1"></i>Contact us
+                              </button>
+
+                            </div>
+                          </div>
                         </div>
-                    </div>`);
+                      `);
+
+
                 } else {
                     renderElement(data, flowIndex);
                     flowIndex += 1;
@@ -203,6 +224,182 @@ function renderElement(element, idx) {
         $('#frage-history').empty();
         flowIndex = 0;
         loadInitialFrage();
+    });
+
+    $("#frage-history").on("click", ".contact-us-btn", function () {
+      contactUs();
+    });
+
+function contactUs() {
+  fetch("/get_email_config", { cache: "no-store" })
+    .then(r => {
+      if (!r.ok) throw new Error("Konfiguration nicht gefunden.");
+      return r.json();
+    })
+    .then(config => {
+      const recipient = encodeURIComponent(config.email_recipient || "");
+      const subject   = encodeURIComponent(config.email_subject || "");
+      const body      = encodeURIComponent(config.email_body || "");
+
+      const mailtoLink = `mailto:${recipient}?subject=${subject}&body=${body}`;
+
+      window.location.href = mailtoLink;
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Email-Konfiguration ist nicht gesetzt.");
+    });
+}
+
+    function _cloneHistoryForPrint() {
+      const original = document.getElementById("frage-history");
+
+      // Build a map of select-id -> current value from the LIVE DOM
+      const selectValues = new Map();
+      original.querySelectorAll("select.antwort-dropdown").forEach(sel => {
+        selectValues.set(sel.id, sel.value || "");
+      });
+
+      const clone = original.cloneNode(true);
+
+      // Make it "print friendly"
+      clone.style.background = "white";
+      clone.style.padding = "0";
+      clone.style.margin = "0";
+
+      // Replace selects with static text using the ORIGINAL value
+      clone.querySelectorAll("select.antwort-dropdown").forEach(sel => {
+        const chosenVal = selectValues.get(sel.id) || "";
+        const label =
+          chosenVal === "ja" ? "Ja" :
+          chosenVal === "nein" ? "Nein" :
+          chosenVal === "unsicher" ? "Unsicher" :
+          "---";
+
+        const span = document.createElement("div");
+        span.style.marginTop = "6px";
+        span.style.fontWeight = "600";
+        span.textContent = `Antwort: ${label}`;
+
+        sel.parentNode.replaceChild(span, sel);
+      });
+
+      // Replace file inputs with a simple marker
+      clone.querySelectorAll('input[type="file"]').forEach(inp => {
+        const span = document.createElement("div");
+        span.style.marginTop = "6px";
+        span.style.fontStyle = "italic";
+        span.textContent = "(Dokument-Upload Feld)";
+        inp.parentNode.replaceChild(span, inp);
+      });
+
+      // Replace text inputs with their content (so typed user prompt appears)
+      clone.querySelectorAll('input[type="text"]').forEach(inp => {
+        const span = document.createElement("div");
+        span.style.marginTop = "6px";
+        span.style.whiteSpace = "pre-wrap";
+        span.textContent = `Eingabe: ${inp.value || ""}`;
+        inp.parentNode.replaceChild(span, inp);
+      });
+
+      // Remove buttons (LLM run button / restart / download etc.)
+      clone.querySelectorAll("button").forEach(btn => btn.remove());
+
+      // Ensure output boxes are visible if they have content
+      clone.querySelectorAll(".output-box").forEach(box => {
+        const text = (box.textContent || "").trim();
+        if (!text) {
+          box.remove();
+        } else {
+          box.style.display = "block";
+          box.style.whiteSpace = "pre-wrap";
+        }
+      });
+
+      return clone;
+    }
+
+    async function downloadHistoryAsPdf() {
+      const { jsPDF } = window.jspdf;
+
+      // Create an offscreen container to render a clean clone
+      const wrapper = document.createElement("div");
+      wrapper.style.position = "fixed";
+      wrapper.style.left = "-10000px";
+      wrapper.style.top = "0";
+      wrapper.style.width = "800px";         // stable layout for capture
+      wrapper.style.background = "white";
+      wrapper.style.padding = "16px";
+      wrapper.style.fontFamily = "Arial, sans-serif";
+      wrapper.style.color = "#000";
+
+      // Header
+      const header = document.createElement("div");
+      header.innerHTML = `
+        <div style="font-size:18px;font-weight:700;margin-bottom:4px;">Fragebogen – Verlauf</div>
+        <div style="font-size:11px;color:#333;margin-bottom:12px;">Exportiert am: ${new Date().toLocaleString("de-DE")}</div>
+      `;
+      wrapper.appendChild(header);
+
+      // Clone current history
+      const clone = _cloneHistoryForPrint();
+      wrapper.appendChild(clone);
+      document.body.appendChild(wrapper);
+
+      // Render to canvas
+      const canvas = await html2canvas(wrapper, {
+        scale: 2,                // quality
+        backgroundColor: "#ffffff",
+        useCORS: true
+      });
+
+      // Build PDF (A4)
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      // Convert canvas to image and paginate
+      const imgData = canvas.toDataURL("image/png");
+      const imgProps = pdf.getImageProperties(imgData);
+
+      // Calculate dimensions to fit width
+      const pdfWidth = pageWidth;
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      let position = 0;
+      let heightLeft = pdfHeight;
+
+      pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        pdf.addPage();
+        position = - (pdfHeight - heightLeft);
+        pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+      }
+
+      // Cleanup
+      document.body.removeChild(wrapper);
+
+      // Save
+      const filename = `fragebogen_verlauf_${new Date().toISOString().slice(0,10)}.pdf`;
+      pdf.save(filename);
+    }
+
+    $("#frage-history").on("click", ".download-history-pdf-btn", async function () {
+      const $btn = $(this);
+      const oldHtml = $btn.html();
+      try {
+        $btn.prop("disabled", true).addClass("disabled")
+          .html('<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>PDF wird erstellt…');
+        await downloadHistoryAsPdf();
+      } catch (e) {
+        console.error(e);
+        alert("Fehler beim Erstellen der PDF-Datei: " + (e?.message || e));
+      } finally {
+        $btn.prop("disabled", false).removeClass("disabled").html(oldHtml);
+      }
     });
 
     $(document).ready(function() {

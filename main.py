@@ -111,7 +111,7 @@ def next_element():
 @app.route("/graph")
 def graph_page():
     # Simple page that embeds the SVG
-    return render_template("graph.html")
+    return render_template("graph.html", full_width=True)
 
 @app.route("/graph.svg")
 def graph_svg():
@@ -270,11 +270,6 @@ def graph_status():
 
     except Exception as e:
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
-
-
-
-
-
 # </editor-fold>
 
 # ===========================================================================================================
@@ -446,7 +441,9 @@ def edit_antwort():
 def get_antworten():
     try:
         antworten = db.get_all_antworten()
-        return jsonify([{"ID": row["ID"], "Bez": row["Bez"]} for row in antworten])
+        # include Text so _antworten_liste.html can display it
+        return jsonify([{"ID": a["ID"], "Bez": a["Bez"], "Text": a.get("Text", "")} for a in antworten])
+        # or simply: return jsonify(antworten)
     except Exception as e:
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
 
@@ -696,6 +693,17 @@ def delete_prompt(prompt_id):
 def prompts_liste():
     return render_template("_prompts_liste.html")
 
+# </editor-fold>
+
+# ===========================================================================================================
+
+# <editor-fold desc="Config">
+@app.route("/get_email_config", methods=["GET"])
+def get_email_config_route():
+    config = db.get_email_config()
+    if not config:
+        return jsonify({"message": "Email-Konfiguration nicht gesetzt."}), 404
+    return jsonify(config)
 # </editor-fold>
 
 # ===========================================================================================================

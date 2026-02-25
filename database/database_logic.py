@@ -74,6 +74,16 @@ def init_db():
                 )
             """)
 
+    # tbl_config (global configuration – single row expected)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tbl_config (
+            ID INTEGER NOT NULL PRIMARY KEY,
+            email_recipient TEXT,
+            email_subject TEXT,
+            email_body TEXT
+        )
+    """)
+
     conn.commit()
     close_connection(conn)
 
@@ -553,6 +563,59 @@ def prompt_is_referenced(prompt_id: int) -> bool:
 
 # ===========================================================================================================
 
+def set_email_config(email_recipient: str, email_subject: str, email_body: str):
+    """
+    Stores email configuration in tbl_config.
+    Always uses ID = 1 (single configuration row).
+    Inserts if not existing, updates otherwise.
+    """
+    conn, cursor = open_connection()
+    try:
+        # Check if row with ID=1 exists
+        cursor.execute("SELECT COUNT(*) FROM tbl_config WHERE ID = 1")
+        exists = cursor.fetchone()[0]
+
+        if exists:
+            cursor.execute("""
+                UPDATE tbl_config
+                SET email_recipient = ?, email_subject = ?, email_body = ?
+                WHERE ID = 1
+            """, (email_recipient, email_subject, email_body))
+        else:
+            cursor.execute("""
+                INSERT INTO tbl_config (ID, email_recipient, email_subject, email_body)
+                VALUES (1, ?, ?, ?)
+            """, (email_recipient, email_subject, email_body))
+
+        conn.commit()
+    finally:
+        close_connection(conn)
+
+def get_email_config():
+    """
+    Returns the email configuration from tbl_config (ID = 1).
+    """
+    conn, cursor = open_connection()
+    try:
+        cursor.execute("""
+            SELECT email_recipient, email_subject, email_body
+            FROM tbl_config
+            WHERE ID = 1
+        """)
+        row = cursor.fetchone()
+        if not row:
+            return None
+
+        return {
+            "email_recipient": row[0] or "",
+            "email_subject": row[1] or "",
+            "email_body": row[2] or ""
+        }
+    finally:
+        close_connection(conn)
+
+# ===========================================================================================================
+
 def admin_clean_fragen():
     try:
         conn, cursor = open_connection()
@@ -770,3 +833,5 @@ if __name__ == '__main__':
 
     # save_all_tables_to_json()
     # import_all_tables_from_json()
+
+    # set_email_config("datenschutz-sandbox@lfdi.de", "Kontaktaufnahme: Datenschutz-Sandbox", "Hallo")
