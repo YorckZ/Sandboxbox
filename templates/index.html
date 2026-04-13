@@ -1,124 +1,92 @@
 <!DOCTYPE html>
-<html lang="de" xmlns="http://www.w3.org/1999/html">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sandbox-Box</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <link rel="stylesheet" href="/static/style.css">
+    <title>{% block title %}Datenschutz Rheinland-Pfalz – Prototyp{% endblock %}</title>
 
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 </head>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<body class="rlp-body">
 
-<body>
+    <div class="top-strip"></div>
 
+    <header class="site-header">
+        <div class="container-fluid site-header-inner">
+            <div class="brand-area">
+                <div class="state-brand">
+                    <div class="state-brand-mark"></div>
+                    <div class="state-brand-text">
+                        <div class="state-brand-top">Rheinland-Pfalz</div>
+                        <div class="state-brand-bottom">Landesregierung</div>
+                    </div>
+                </div>
 
-<!--&lt;!&ndash;    Title Bar&ndash;&gt;-->
-<!--    <header>-->
-<!--        <style>-->
-<!--            /* General styling for the header */-->
-<!--            header {-->
-<!--                padding: 10px;-->
-<!--            }-->
+                <div class="site-title-wrap">
+                    <div class="site-kicker">Datenschutz</div>
+                    <div class="site-title">Landesbeauftragter für den Datenschutz und die Informationsfreiheit</div>
+                </div>
+            </div>
 
-<!--            /* Styling for the header title */-->
-<!--            .header-title h1 {-->
-<!--                margin: 0;-->
-<!--            }-->
-
-<!--            /* Styling for the header images container */-->
-<!--            .header-images {-->
-<!--                display: flex;-->
-<!--                justify-content: flex-end; /* Align images to the right */-->
-<!--                gap: 10px; /* Add space between images */-->
-<!--                padding: 10px; /* Add padding around images for better spacing */-->
-<!--                border-radius: 5px; /* Optional: rounded corners */-->
-<!--            }-->
-
-<!--            /* Styling for individual images */-->
-<!--            .header-images img {-->
-<!--                max-height: 50px; /* Adjust image size if needed */-->
-<!--                background-color: white; /* White background for each image */-->
-<!--                padding: 5px; /* Padding inside image background */-->
-<!--                border: 1px solid #ccc; /* Optional: subtle border */-->
-<!--                border-radius: 5px; /* Optional: rounded corners for images */-->
-<!--            }-->
-<!--        </style>-->
-<!--        <div class="row" >-->
-<!--            <div class="col-2"></div>-->
-<!--            <div class="col-8 d-flex align-items-center">-->
-<!--                <div class="header-title">-->
-<!--                    <h1>Sandbox-Box</h1>-->
-<!--                </div>-->
-<!--            </div>-->
-<!--            <div class="col-2"></div>-->
-<!--        </div>-->
-<!--    </header>-->
-
-<!--&lt;!&ndash;    Dynamic Nav Bar&ndash;&gt;-->
-<!--    <div class="row">-->
-<!--        <div class="col-3 navbar-y"></div>-->
-<!--        <div class="navbar-y col-6 d-flex justify-content-around">-->
-<!--            <a href="/">Start</a>-->
-<!--            <a href="/sat">Self-Assessment</a>-->
-<!--            <a href="/new">DB-based</a>-->
-<!--            <div class="dropdown-y">-->
-<!--                <button class="dropbtn">Admin-->
-<!--                    <i class="fa fa-caret-down"></i>-->
-<!--                </button>-->
-<!--                <div class="dropdown-content">-->
-
-<!--                    <a href="/dashboard">Dashboard</a>-->
-<!--                    <a href="/graph">Graph</a>-->
-
-<!--                    <a href="/fragen_liste">Fragen Übersicht</a>-->
-<!--                    <a href="/antworten_liste">Antworten Übersicht</a>-->
-<!--                    <a href="/prompts_liste">Prompts Übersicht</a>-->
-
-<!--                    <a href="/anlegen_frage">Frage Anlegen</a>-->
-<!--                    <a href="/edit_frage">Frage Editieren</a>-->
-<!--                    <a href="/loeschen_frage">Frage Löschen</a>-->
-
-<!--                    <a href="/anlegen_antwort">Antwort Anlegen</a>-->
-<!--                    <a href="/edit_antwort">Antwort Editieren</a>-->
-<!--                    <a href="/loeschen_antwort">Antwort Löschen</a>-->
-
-<!--                    <a href="/anlegen_prompt">Prompt Anlegen</a>-->
-<!--                    <a href="/edit_prompt">Prompt Editieren</a>-->
-<!--                    <a href="/loeschen_prompt">Prompt Löschen</a>-->
-
-<!--                </div>-->
-<!--            </div>-->
-<!--        </div>-->
-<!--        <div class="col-3 navbar-y"></div>-->
-<!--    </div>-->
-
-
-    <!-- Main Content Frame -->
-    <div class="row">
-      {% if full_width %}
-        <div class="col-12">
-      {% else %}
-        <div class="col-3"></div>
-        <div class="col-6">
-      {% endif %}
-
-          <div id="main-content" class="{% if full_width %}px-4{% endif %}">
-            {% block content %}
-            <!-- Dynamic Content Goes Here -->
-            {% endblock %}
-          </div>
-
-      {% if full_width %}
+            <div class="utility-links">
+                <a href="#" aria-label="Suche"><i class="bi bi-search"></i></a>
+                <a href="#" aria-label="Leichte Sprache">Leichte Sprache</a>
+            </div>
         </div>
-      {% else %}
+
+        <nav class="main-nav">
+            <div class="container-fluid">
+                <ul class="main-nav-list">
+                    <li><a href="#">Über uns</a></li>
+                    <li><a href="#">Bürgerinnen / Bürger</a></li>
+                    <li><a href="#">Wirtschaft</a></li>
+                    <li><a href="#">Verwaltung</a></li>
+                    <li><a href="#">Service</a></li>
+                    <li><a href="{{ url_for('new') }}" class="nav-selbsttest">Selbsttest</a></li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main class="page-main">
+        {% if full_width %}
+            <div class="container-fluid py-4">
+        {% else %}
+            <div class="container py-4">
+        {% endif %}
+
+                {% block content %}{% endblock %}
+
+            </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container py-4">
+            <div class="footer-grid">
+                <div>
+                    <h6>Über den LfDI</h6>
+                    <a href="#">Kontakt</a>
+                    <a href="#">Impressum</a>
+                    <a href="#">Datenschutzerklärung</a>
+                </div>
+                <div>
+                    <h6>Informationen</h6>
+                    <a href="#">Aktuelle Nachrichten</a>
+                    <a href="#">Presse</a>
+                    <a href="#">Newsletter</a>
+                </div>
+                <div>
+                    <h6>Prototyp</h6>
+                    <a href="{{ url_for('new') }}">Selbsttest</a>
+                    <a href="{{ url_for('dashboard') }}">Dashboard</a>
+                    <a href="{{ url_for('graph_page') }}">Graph</a>
+                </div>
+            </div>
         </div>
-        <div class="col-3"></div>
-      {% endif %}
-    </div>
+    </footer>
 
-
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -1,160 +1,244 @@
-body {
-    font-family: Arial, sans-serif;
+body.rlp-body {
     margin: 0;
-    padding: 0;
-    background-color: #f8f8f8;
-    color: #333;
-}
-header {
-    /* background-color: #C102D1; */
-    background-color: #a00e7d;
-    color: white;
-    padding: 20px;
-    position: relative;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f4f6f8;
+    color: #1f2933;
 }
 
-.header-title {
-    text-align: center;
-    flex: 1;
+.top-strip {
+    height: 6px;
+    background: #f4c300;
 }
 
-.header-title h1 {
-    margin: 0;
+.site-header {
+    background: #ffffff;
+    border-bottom: 1px solid #d9e0e6;
 }
-.header-images {
+
+.site-header-inner {
     display: flex;
-    gap: 10px;
-}
-.header-images img {
-    height: 50px;
-    width: auto;
-    border-radius: 5px;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    padding: 18px 24px;
 }
 
-main {
-    max-width: 800px;
-    margin: 20px auto;
-    padding: 20px;
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+.brand-area {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    flex-wrap: wrap;
 }
-h1 {
-    margin-top: 0;
+
+.state-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 210px;
 }
-label {
+
+.state-brand-mark {
+    width: 18px;
+    height: 54px;
+    background: linear-gradient(to bottom, #000 33%, #d4001a 33%, #d4001a 66%, #f4c300 66%);
+    border-radius: 2px;
+}
+
+.state-brand-top {
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.state-brand-bottom {
+    font-size: 0.85rem;
+    color: #5b6770;
+}
+
+.site-kicker {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #005ea8;
+    margin-bottom: 2px;
+}
+
+.site-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    max-width: 720px;
+    line-height: 1.25;
+}
+
+.utility-links {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    white-space: nowrap;
+}
+
+.utility-links a {
+    color: #005ea8;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.main-nav {
+    background: #005ea8;
+}
+
+.main-nav-list {
+    list-style: none;
+    display: flex;
+    gap: 0;
+    margin: 0;
+    padding: 0 12px;
+    flex-wrap: wrap;
+}
+
+.main-nav-list li {
+    margin: 0;
+}
+
+.main-nav-list a {
     display: block;
-    margin-top: 10px;
-    font-weight: bold;
-}
-input, textarea, select {
-    width: 100%;
-    padding: 10px;
-    margin-top: 5px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 14px;
-}
-textarea {
-    resize: vertical;
-}
-button {
-    background-color: #0047ab;
     color: white;
-    border: none;
-    padding: 10px 15px;
-    font-size: 16px;
-    border-radius: 4px;
-    cursor: pointer;
-}
-button:hover {
-    background-color: #003580;
+    text-decoration: none;
+    padding: 16px 18px;
+    font-weight: 700;
+    font-size: 0.98rem;
 }
 
+.main-nav-list a:hover {
+    background: #0d72c6;
+}
+
+.main-nav-list .nav-selbsttest {
+    background: #f4c300;
+    color: #1f2933;
+}
+
+.main-nav-list .nav-selbsttest:hover {
+    background: #ffd84c;
+}
+
+.page-main {
+    min-height: 70vh;
+}
+
+.site-footer {
+    background: #e9eef2;
+    border-top: 1px solid #d1d8de;
+    margin-top: 32px;
+}
+
+.footer-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+    gap: 24px;
+}
+
+.footer-grid h6 {
+    margin-bottom: 10px;
+    font-weight: 700;
+}
+
+.footer-grid a {
+    display: block;
+    color: #32424f;
+    text-decoration: none;
+    margin-bottom: 8px;
+}
+
+.footer-grid a:hover {
+    text-decoration: underline;
+}
+
+/* Your questionnaire cards can stay as they are */
 .output-box {
     padding: 15px;
     margin-top: 10px;
-    border: 1px solid #ccc; /* Light gray border */
-    border-radius: 8px; /* Rounded corners */
-    background-color: #f9f9f9; /* Slightly off-white background */
-    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1); /* Slightly raised shadow */
-    font-size: 16px; /* Text size */
-    color: #333; /* Dark gray text */
-    word-wrap: break-word; /* Ensure long text wraps */
-    min-height: 50px; /* Minimum height for consistency */
-    display: none; /* Initially hidden */
-}
-
-.navbar-y {
-    /* background-color: #0047ab; */
-    background-color: #0B4EAF;
-    overflow: hidden;
-    font-weight: bold !important;
-}
-
-.navbar-y a {
-    float: left;
-    display: block;
-    color: white;
-    text-align: center;
-    padding: 14px 16px;
-    text-decoration: none;
-}
-
-.navbar-y a:hover {
-    background-color: #4075C0;
-}
-
-.dropdown-y {
-    float: left;
-    overflow: hidden;
-}
-
-.dropdown-y .dropbtn {
-    cursor: pointer;
-    font-size: 16px;
-    border: none;
-    outline: none;
-    color: white;
-    padding: 14px 16px;
-    background-color: inherit;
-    font-family: inherit;
-    margin: 0;
-    font-weight: bold
-}
-
-.dropdown-content {
-    display: none;
-    position: absolute;
+    border: 1px solid #ccc;
+    border-radius: 8px;
     background-color: #f9f9f9;
-    min-width: 160px;
-    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-    z-index: 1;
-    border-radius: 0px 0px 15px 15px;
+    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.08);
+    font-size: 16px;
+    color: #333;
+    word-wrap: break-word;
+    min-height: 50px;
+    display: none;
 }
 
-.dropdown-content a {
-    float: none;
-    color: black;
-    padding: 12px 16px;
-    text-decoration: none;
-    display: block;
-    text-align: left;
+/* Questionnaire accent color */
+:root {
+    --sandbox-accent: #a00e7d;
+    --sandbox-accent-hover: #870b6a;
+    --sandbox-accent-soft: rgba(160, 14, 125, 0.12);
 }
 
-.dropdown-content a:hover {
-    background-color: #C0D1EA;
+/* Text + icons that currently use Bootstrap primary */
+.text-primary {
+    color: var(--sandbox-accent) !important;
 }
 
-.dropdown-y:hover .dropdown-content {
-    display: block;
+/* Primary buttons */
+.btn-primary {
+    background-color: var(--sandbox-accent) !important;
+    border-color: var(--sandbox-accent) !important;
 }
 
-.dropdown-y:hover .dropbtn {
-    background-color: #4075C0;
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+    background-color: var(--sandbox-accent-hover) !important;
+    border-color: var(--sandbox-accent-hover) !important;
 }
 
-/* Dashboard Übersicht card */
-.dashboard-overview-card {
-    background-color: #eef6ff; /* clearly brighter than white */
+/* Outline primary buttons */
+.btn-outline-primary {
+    color: var(--sandbox-accent) !important;
+    border-color: var(--sandbox-accent) !important;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus,
+.btn-outline-primary:active {
+    background-color: var(--sandbox-accent) !important;
+    border-color: var(--sandbox-accent) !important;
+    color: #fff !important;
+}
+
+/* Form focus states */
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--sandbox-accent) !important;
+    box-shadow: 0 0 0 0.25rem var(--sandbox-accent-soft) !important;
+}
+
+/* Optional: slightly brand the question cards */
+.frage-block {
+    border-left: 5px solid var(--sandbox-accent);
+}
+
+/* Optional: links */
+a {
+    color: var(--sandbox-accent);
+}
+
+a:hover {
+    color: var(--sandbox-accent-hover);
+}
+
+.sandbox-logo {
+    max-height: 120px;
+    width: auto;
+}
+
+/* Dropdown (select) hover + focus */
+.form-select:hover {
+    border-color: #a00e7d !important;
+}
+
+.form-select:focus {
+    border-color: #a00e7d !important;
+    box-shadow: 0 0 0 0.25rem rgba(160, 14, 125, 0.25) !important;
 }
