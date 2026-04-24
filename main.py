@@ -11,7 +11,7 @@ import database.database_logic as db
 
 # <editor-fold desc="Basic code functionality">
 app = Flask(__name__)
-# from openai import OpenAI
+from openai import OpenAI
 # from dotenv import load_dotenv
 # UPLOAD_FOLDER = 'uploads'
 # app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -591,6 +591,71 @@ def _frage_text_only(frage_field: str) -> str:
         return frage_field.split(":", 1)[1].strip()
     return frage_field.strip()
 
+def _run_ollama_prompt(full_prompt: str, cfg: dict) -> str:
+    base_url = (cfg.get("ollama_base_url") or "http://localhost:11434").rstrip("/")
+    model_name = cfg.get("ollama_model") or "llama3.1"
+
+    r = requests.post(
+        f"{base_url}/api/generate",
+        json={
+            "model": model_name,
+            "prompt": full_prompt,
+            "stream": False,
+            "options": {
+                "temperature": cfg.get("temperature", 0.2),
+                "num_predict": cfg.get("max_output_tokens", 1000)
+            }
+        },
+        timeout=120
+    )
+    r.raise_for_status()
+    data = r.json()
+    answer = (data.get("response") or "").strip()
+
+    if not answer:
+        raise RuntimeError("Leere Antwort vom lokalen LLM.")
+
+    return answer
+
+
+def _run_openai_prompt(full_prompt: str, cfg: dict) -> str:
+    api_key = cfg.get("openai_api_key") or ""
+    model = cfg.get("openai_model") or "gpt-4.1-mini"
+    base_url = (cfg.get("openai_base_url") or "").strip() or None
+
+    if not api_key:
+        raise RuntimeError("OpenAI API-Key fehlt.")
+
+    client_kwargs = {"api_key": api_key}
+    if base_url:
+        client_kwargs["base_url"] = base_url
+
+    client = OpenAI(**client_kwargs)
+
+    response = client.responses.create(
+        model=model,
+        input=full_prompt,
+        temperature=float(cfg.get("temperature", 0.2)),
+        max_output_tokens=int(cfg.get("max_output_tokens", 1000))
+    )
+
+    answer = (response.output_text or "").strip()
+    if not answer:
+        raise RuntimeError("Leere Antwort von der ChatGPT API.")
+
+    return answer
+
+
+def _run_configured_llm(full_prompt: str) -> str:
+    cfg = db.get_llm_config()
+    provider = cfg.get("provider") or "ollama"
+
+    if provider == "openai":
+        return _run_openai_prompt(full_prompt, cfg)
+
+    return _run_ollama_prompt(full_prompt, cfg)
+
+
 @app.route('/run_prompt', methods=['POST'])
 def run_prompt():
     """
@@ -650,26 +715,34 @@ def run_prompt():
         parts.extend(["", instr_f])
         full_prompt = "\n".join(parts).strip()
 
-        # Call local Ollama
-        model_name = os.getenv("OLLAMA_MODEL", "llama3.1")  # set OLLAMA_MODEL in your env if you prefer
+        # # Call local Ollama
+        # model_name = os.getenv("OLLAMA_MODEL", "llama3.1")  # set OLLAMA_MODEL in your env if you prefer
+        # try:
+        #     r = requests.post(
+        #         "http://localhost:11434/api/generate",
+        #         json={
+        #             "model": model_name,
+        #             "prompt": full_prompt,
+        #             "stream": False
+        #         },
+        #         timeout=120
+        #     )
+        #     r.raise_for_status()
+        #     data = r.json()
+        #     answer = (data.get("response") or "").strip()
+        #     if not answer:
+        #         return jsonify({"error": "Leere Antwort vom LLM."}), 502
+        #     return jsonify({"result": answer})
+        # except requests.RequestException as re:
+        #     return jsonify({"error": f"Ollama nicht erreichbar oder Fehler: {re}"}), 502
+
         try:
-            r = requests.post(
-                "http://localhost:11434/api/generate",
-                json={
-                    "model": model_name,
-                    "prompt": full_prompt,
-                    "stream": False
-                },
-                timeout=120
-            )
-            r.raise_for_status()
-            data = r.json()
-            answer = (data.get("response") or "").strip()
-            if not answer:
-                return jsonify({"error": "Leere Antwort vom LLM."}), 502
+            answer = _run_configured_llm(full_prompt)
             return jsonify({"result": answer})
         except requests.RequestException as re:
-            return jsonify({"error": f"Ollama nicht erreichbar oder Fehler: {re}"}), 502
+            return jsonify({"error": f"Lokales LLM nicht erreichbar oder Fehler: {re}"}), 502
+        except Exception as le:
+            return jsonify({"error": f"LLM-Fehler: {le}"}), 502
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -698,13 +771,108 @@ def prompts_liste():
 # ===========================================================================================================
 
 # <editor-fold desc="Config">
+@app.route("/email_konfigurieren")
+def email_konfigurieren():
+    return render_template("_email_konfigurieren.html")
+
+
 @app.route("/get_email_config", methods=["GET"])
-def get_email_config_route():
+def get_email_config():
     config = db.get_email_config()
     if not config:
-        return jsonify({"message": "Email-Konfiguration nicht gesetzt."}), 404
+        return jsonify({
+            "email_recipient": "",
+            "email_subject": "",
+            "email_body": ""
+        })
     return jsonify(config)
+
+
+@app.route("/save_email_config", methods=["POST"])
+def save_email_config():
+    try:
+        data = request.get_json() or {}
+
+        email_recipient = (data.get("email_recipient") or "").strip()
+        email_subject = (data.get("email_subject") or "").strip()
+        email_body = data.get("email_body") or ""
+
+        if not email_recipient or not email_subject:
+            return jsonify({"message": "Empfängeradresse und Betreff sind erforderlich."}), 400
+
+        db.set_email_config(email_recipient, email_subject, email_body)
+
+        return jsonify({"message": "E-Mail-Konfiguration erfolgreich gespeichert!"})
+    except Exception as e:
+        return jsonify({"message": f"Fehler: {str(e)}"}), 500
 # </editor-fold>
+
+@app.route("/llm_konfigurieren")
+def llm_konfigurieren():
+    return render_template("_llm_konfigurieren.html")
+
+
+@app.route("/get_llm_config", methods=["GET"])
+def get_llm_config():
+    return jsonify(db.get_llm_config_safe())
+
+
+@app.route("/save_llm_config", methods=["POST"])
+def save_llm_config():
+    try:
+        data = request.get_json() or {}
+
+        provider = (data.get("provider") or "ollama").strip()
+        if provider not in ("ollama", "openai"):
+            return jsonify({"message": "Ungültiger LLM-Anbieter."}), 400
+
+        current = db.get_llm_config()
+
+        ollama_base_url = (data.get("ollama_base_url") or "http://localhost:11434").strip()
+        ollama_model = (data.get("ollama_model") or "llama3.1").strip()
+
+        new_openai_api_key = (data.get("openai_api_key") or "").strip()
+        openai_api_key = new_openai_api_key or current.get("openai_api_key", "")
+
+        openai_model = (data.get("openai_model") or "gpt-4.1-mini").strip()
+        openai_base_url = (data.get("openai_base_url") or "").strip()
+
+        try:
+            temperature = float(data.get("temperature", 0.2))
+        except Exception:
+            temperature = 0.2
+
+        try:
+            max_output_tokens = int(data.get("max_output_tokens", 1000))
+        except Exception:
+            max_output_tokens = 1000
+
+        if temperature < 0:
+            temperature = 0
+        if temperature > 2:
+            temperature = 2
+        if max_output_tokens < 1:
+            max_output_tokens = 1000
+
+        if provider == "openai" and not openai_api_key:
+            return jsonify({"message": "Für ChatGPT API ist ein OpenAI API-Key erforderlich."}), 400
+
+        db.set_llm_config(
+            provider=provider,
+            ollama_base_url=ollama_base_url,
+            ollama_model=ollama_model,
+            openai_api_key=openai_api_key,
+            openai_model=openai_model,
+            openai_base_url=openai_base_url,
+            temperature=temperature,
+            max_output_tokens=max_output_tokens
+        )
+
+        return jsonify({"message": "LLM-Konfiguration erfolgreich gespeichert!"})
+
+    except Exception as e:
+        return jsonify({"message": f"Fehler: {str(e)}"}), 500
+
 
 # ===========================================================================================================
 

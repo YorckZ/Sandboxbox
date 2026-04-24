@@ -81,10 +81,12 @@
                     </div>
                     <div class="col-md-4">
                         <label for="unsicher" class="form-label">
-                            Unsicher (nächstes Element)
+<!--                            Unsicher (nächstes Element)-->
+                            Nicht sicher (nächstes Element)
                             <i class="bi bi-info-circle-fill ms-2 text-info"
                                data-bs-toggle="tooltip"
-                               title="Wählen Sie das nächste Element, das bei Antwort 'Unsicher' angezeigt wird."></i>
+                               title="Wählen Sie das nächste Element, das bei Antwort 'Nicht sicher' angezeigt wird."></i>
+<!--                               title="Wählen Sie das nächste Element, das bei Antwort 'Unsicher' angezeigt wird."></i>-->
                         </label>
                         <select class="form-select rounded-3" id="unsicher" name="unsicher">
                             <option value="">-- wählen --</option>
@@ -156,7 +158,8 @@
                 // Fill with filters:
                 populateSelectFiltered("ja", ["Frage", "Antwort"]);
                 populateSelectFiltered("nein", ["Frage", "Antwort"]);
-                populateSelectFiltered("unsicher", ["Prompt"]);
+                // populateSelectFiltered("unsicher", ["Prompt"]);
+                populateSelectFiltered("unsicher", ["Frage", "Prompt"]);
                 allBezLoaded = true;
             })
             .catch(err => console.error("Fehler beim Laden der Bez-Liste:", err));

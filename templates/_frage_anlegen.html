@@ -65,10 +65,12 @@
                     </div>
                     <div class="col-md-4">
                         <label for="unsicher" class="form-label">
-                            Unsicher (nächstes Element)
+<!--                            Unsicher (nächstes Element)-->
+                            Nicht sicher (nächstes Element)
                             <i class="bi bi-info-circle-fill ms-2 text-info"
                                data-bs-toggle="tooltip"
-                               title="Wählen Sie das nächste Element, das bei Antwort 'Unsicher' angezeigt wird."></i>
+                               title="Wählen Sie das nächste Element, das bei Antwort 'Micht sicher' angezeigt wird."></i>
+<!--                               title="Wählen Sie das nächste Element, das bei Antwort 'Unsicher' angezeigt wird."></i>-->
                         </label>
                         <select class="form-select rounded-3" id="unsicher" name="unsicher">
                             <option value="">-- wählen --</option>
@@ -141,7 +143,8 @@
         .then(list => {
             // Filtered lists
             const allowedYesNo = list.filter(it => it.type === "Frage" || it.type === "Antwort");
-            const allowedUnsicher = list.filter(it => it.type === "Prompt");
+            // const allowedUnsicher = list.filter(it => it.type === "Prompt");
+            const allowedUnsicher = list.filter(it => it.type === "Frage" || it.type === "Prompt");
 
             // Populate selects
             const jaSel = document.getElementById("ja");

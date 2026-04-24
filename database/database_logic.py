@@ -84,6 +84,24 @@ def init_db():
         )
     """)
 
+    # tbl_llm_config (global LLM configuration – single row expected)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tbl_llm_config (
+            ID INTEGER NOT NULL PRIMARY KEY,
+            provider TEXT NOT NULL DEFAULT 'ollama',
+
+            ollama_base_url TEXT DEFAULT 'http://localhost:11434',
+            ollama_model TEXT DEFAULT 'llama3.1',
+
+            openai_api_key TEXT,
+            openai_model TEXT DEFAULT 'gpt-4.1-mini',
+            openai_base_url TEXT,
+
+            temperature REAL DEFAULT 0.2,
+            max_output_tokens INTEGER DEFAULT 1000
+        )
+    """)
+
     conn.commit()
     close_connection(conn)
 
@@ -613,6 +631,142 @@ def get_email_config():
         }
     finally:
         close_connection(conn)
+
+def set_llm_config(
+    provider: str,
+    ollama_base_url: str,
+    ollama_model: str,
+    openai_api_key: str,
+    openai_model: str,
+    openai_base_url: str,
+    temperature: float,
+    max_output_tokens: int
+):
+    """
+    Stores LLM configuration in tbl_llm_config.
+    Always uses ID = 1.
+    """
+    conn, cursor = open_connection()
+    try:
+        cursor.execute("SELECT COUNT(*) FROM tbl_llm_config WHERE ID = 1")
+        exists = cursor.fetchone()[0]
+
+        provider = provider or "ollama"
+        ollama_base_url = ollama_base_url or "http://localhost:11434"
+        ollama_model = ollama_model or "llama3.1"
+        openai_model = openai_model or "gpt-4.1-mini"
+
+        if exists:
+            cursor.execute("""
+                UPDATE tbl_llm_config
+                SET provider = ?,
+                    ollama_base_url = ?,
+                    ollama_model = ?,
+                    openai_api_key = ?,
+                    openai_model = ?,
+                    openai_base_url = ?,
+                    temperature = ?,
+                    max_output_tokens = ?
+                WHERE ID = 1
+            """, (
+                provider,
+                ollama_base_url,
+                ollama_model,
+                openai_api_key,
+                openai_model,
+                openai_base_url,
+                temperature,
+                max_output_tokens
+            ))
+        else:
+            cursor.execute("""
+                INSERT INTO tbl_llm_config (
+                    ID,
+                    provider,
+                    ollama_base_url,
+                    ollama_model,
+                    openai_api_key,
+                    openai_model,
+                    openai_base_url,
+                    temperature,
+                    max_output_tokens
+                )
+                VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                provider,
+                ollama_base_url,
+                ollama_model,
+                openai_api_key,
+                openai_model,
+                openai_base_url,
+                temperature,
+                max_output_tokens
+            ))
+
+        conn.commit()
+    finally:
+        close_connection(conn)
+
+
+def get_llm_config():
+    """
+    Returns LLM configuration from tbl_llm_config.
+    If no row exists, returns safe defaults.
+    """
+    conn, cursor = open_connection()
+    try:
+        cursor.execute("""
+            SELECT
+                provider,
+                ollama_base_url,
+                ollama_model,
+                openai_api_key,
+                openai_model,
+                openai_base_url,
+                temperature,
+                max_output_tokens
+            FROM tbl_llm_config
+            WHERE ID = 1
+        """)
+        row = cursor.fetchone()
+
+        if not row:
+            return {
+                "provider": "ollama",
+                "ollama_base_url": "http://localhost:11434",
+                "ollama_model": "llama3.1",
+                "openai_api_key": "",
+                "openai_model": "gpt-4.1-mini",
+                "openai_base_url": "",
+                "temperature": 0.2,
+                "max_output_tokens": 1000
+            }
+
+        return {
+            "provider": row[0] or "ollama",
+            "ollama_base_url": row[1] or "http://localhost:11434",
+            "ollama_model": row[2] or "llama3.1",
+            "openai_api_key": row[3] or "",
+            "openai_model": row[4] or "gpt-4.1-mini",
+            "openai_base_url": row[5] or "",
+            "temperature": row[6] if row[6] is not None else 0.2,
+            "max_output_tokens": row[7] if row[7] is not None else 1000
+        }
+    finally:
+        close_connection(conn)
+
+
+def get_llm_config_safe():
+    """
+    Same as get_llm_config(), but masks the API key for UI display.
+    """
+    cfg = get_llm_config()
+    api_key = cfg.get("openai_api_key") or ""
+
+    cfg["openai_api_key_set"] = bool(api_key)
+    cfg["openai_api_key"] = ""
+
+    return cfg
 
 # ===========================================================================================================
 

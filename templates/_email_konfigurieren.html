@@ -1,0 +1,104 @@
+{% extends "index.html" %}
+
+{% block content %}
+
+<div class="container mt-5 mb-5">
+  <div class="card shadow rounded-4 border-0">
+    <div class="card-body p-4">
+      <h2 class="mb-4 text-primary">
+        <i class="bi bi-envelope-gear me-2"></i>E-Mail konfigurieren
+      </h2>
+
+      <form id="emailConfigForm" autocomplete="off">
+        <div class="mb-3">
+          <label for="email_recipient" class="form-label">
+            Empfängeradresse
+          </label>
+          <input
+            type="email"
+            class="form-control rounded-3"
+            id="email_recipient"
+            name="email_recipient"
+            required>
+        </div>
+
+        <div class="mb-3">
+          <label for="email_subject" class="form-label">
+            Betreff
+          </label>
+          <input
+            type="text"
+            class="form-control rounded-3"
+            id="email_subject"
+            name="email_subject"
+            required>
+        </div>
+
+        <div class="mb-4">
+          <label for="email_body" class="form-label">
+            E-Mail-Text
+          </label>
+          <textarea
+            class="form-control rounded-3"
+            id="email_body"
+            name="email_body"
+            rows="8"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary px-4 rounded-3 shadow-sm">
+          <i class="bi bi-save me-1"></i>Speichern
+        </button>
+      </form>
+
+      <p id="statusMessage" class="mt-3"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+  function loadEmailConfig() {
+    fetch("/get_email_config")
+      .then(r => r.json())
+      .then(data => {
+        if (!data) return;
+
+        document.getElementById("email_recipient").value = data.email_recipient || "";
+        document.getElementById("email_subject").value = data.email_subject || "";
+        document.getElementById("email_body").value = data.email_body || "";
+      })
+      .catch(err => {
+        console.error(err);
+        document.getElementById("statusMessage").textContent = "Fehler beim Laden der E-Mail-Konfiguration.";
+      });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    loadEmailConfig();
+
+    document.getElementById("emailConfigForm").addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      const payload = {
+        email_recipient: document.getElementById("email_recipient").value.trim(),
+        email_subject: document.getElementById("email_subject").value.trim(),
+        email_body: document.getElementById("email_body").value
+      };
+
+      fetch("/save_email_config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById("statusMessage").textContent = data.message || "Gespeichert.";
+      })
+      .catch(err => {
+        console.error(err);
+        document.getElementById("statusMessage").textContent = "Fehler beim Speichern.";
+      });
+    });
+  });
+</script>
+
+{% endblock %}
