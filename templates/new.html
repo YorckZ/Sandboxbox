@@ -1,420 +1,458 @@
 {% extends 'index.html' %}
 
 {% block content %}
-<!--<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">-->
-<!--<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">-->
 <div class="container my-4">
-    <div class="text-center mb-4">
-        <img src="{{ url_for('static', filename='Sandbox_Logo.jpg') }}"
-             alt="Sandbox Logo"
-             class="sandbox-logo img-fluid">
-    </div>
+  <div class="text-center mb-4">
+    <img src="{{ url_for('static', filename='Sandbox_Logo.jpg') }}"
+         alt="Sandbox Logo"
+         class="sandbox-logo img-fluid">
+  </div>
 
-    <div id="frage-history"></div>
+  <div id="frage-history"></div>
 </div>
 
-
-<!--<div class="container my-5">-->
-<!--    <div id="frage-history"></div>-->
-<!--</div>-->
-
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script>
-    let flowIndex = 0;
 
-function renderElement(element, idx) {
+<script>
+  let flowIndex = 0;
+
+  function escapeHtml(s) {
+    return (s ?? "")
+      .toString()
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function renderElement(element, idx) {
     if (!element) return;
 
     let html = "";
 
     if (element.type === "Frage") {
-        html = `
+      html = `
         <div class="card shadow rounded-4 border-0 mb-4 frage-block" data-flow-index="${idx}">
-            <div class="card-body p-4">
-                <div class="d-flex align-items-center mb-2">
-                    <i class="bi bi-question-circle text-primary me-2 fs-2"></i>
-                    <h5 class="mb-0 text-primary">${element.Bez}</h5>
-                </div>
-                <p class="fs-5 mb-4">${element.Text}</p>
-                ${element.Bem ? `<p class="fst-italic text-muted mb-3">${element.Bem}</p>` : ""}
-                <div class="row align-items-end mb-2">
-                    <div class="col-12 col-md-6">
-                        <label class="form-label fw-semibold" for="antwort-dropdown-${idx}">Ihre Antwort</label>
-                        <select class="form-select antwort-dropdown" id="antwort-dropdown-${idx}" data-id="${element.ID}">
-                            <option value="">---</option>
-                            <option value="ja">Ja</option>
-                            <option value="nein">Nein</option>
-<!--                            <option value="unsicher">Unsicher</option>-->
-                            <option value="unsicher">Nicht sicher</option>
-                        </select>
-                    </div>
-                </div>
+          <div class="card-body p-4">
+            <div class="d-flex align-items-center mb-2">
+              <i class="bi bi-question-circle text-primary me-2 fs-2"></i>
+              <h5 class="mb-0 text-primary">${escapeHtml(element.Bez)}</h5>
             </div>
+
+            <p class="fs-5 mb-4">${escapeHtml(element.Text)}</p>
+            ${element.Bem ? `<p class="fst-italic text-muted mb-3">${escapeHtml(element.Bem)}</p>` : ""}
+
+            <div class="row align-items-end mb-2">
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-semibold" for="antwort-dropdown-${idx}">Ihre Antwort</label>
+                <select class="form-select antwort-dropdown" id="antwort-dropdown-${idx}" data-id="${element.ID}">
+                  <option value="">---</option>
+                  <option value="ja">Ja</option>
+                  <option value="nein">Nein</option>
+                  <option value="unsicher">Nicht sicher</option>
+                </select>
+              </div>
+            </div>
+          </div>
         </div>`;
     }
 
     else if (element.type === "Antwort") {
       html = `
-      <div class="card shadow rounded-4 border-0 mb-4 antwort-block" data-flow-index="${idx}">
-        <div class="card-body p-4">
-          <div class="d-flex align-items-center mb-2">
-            <i class="bi bi-chat-left-quote text-success me-2 fs-2"></i>
-            <h5 class="mb-0 text-success">${element.Bez}</h5>
-          </div>
-          <p class="fs-5 mb-4">${element.Text || ""}</p>
+        <div class="card shadow rounded-4 border-0 mb-4 antwort-block" data-flow-index="${idx}">
+          <div class="card-body p-4">
+            <div class="d-flex align-items-center mb-2">
+              <i class="bi bi-chat-left-quote text-success me-2 fs-2"></i>
+              <h5 class="mb-0 text-success">${escapeHtml(element.Bez)}</h5>
+            </div>
 
-          <div class="d-flex justify-content-end gap-2">
-            <button class="btn btn-outline-secondary rounded-3 download-history-pdf-btn">
-              <i class="bi bi-filetype-pdf me-1"></i>Verlauf als PDF herunterladen
-            </button>
+            <p class="fs-5 mb-4">${escapeHtml(element.Text || "")}</p>
 
-            <button class="btn btn-outline-primary rounded-3 contact-us-btn">
+            <div class="d-flex justify-content-end gap-2">
+              <button class="btn btn-outline-secondary rounded-3 download-history-pdf-btn">
+                <i class="bi bi-filetype-pdf me-1"></i>Verlauf als PDF herunterladen
+              </button>
+
+              <button class="btn btn-outline-primary rounded-3 contact-us-btn">
                 <i class="bi bi-envelope me-1"></i>Contact us
-            </button>
-
+              </button>
+            </div>
           </div>
-
-        </div>
-      </div>`;
+        </div>`;
     }
 
     else if (element.type === "Prompt") {
-        html = `
-        <div class="card shadow rounded-4 border-0 mb-4 antwort-block" data-flow-index="${idx}">
-            <div class="card-body p-4">
-                <div class="mb-2">
-                    <label class="form-label" for="prompt-input-${idx}">
-                        Fragen Sie SANDy, die Sandbox-KI. Beschreiben Sie Ihre Gründe für und wider die Entscheidung und worin die Unsicherheit liegt, damit SANDy eine Empfehlung aussprechen kann.
-                    </label>
-                    <input type="text" class="form-control" id="prompt-input-${idx}" placeholder="Ihre Beschreibung für SANDy..." />
-                </div>
-                <div class="mb-3">
-                    <label class="form-label" for="file-input-${idx}">
-                        (Optional): Stellen Sie SANDy Dokumente zur Auswertung zur Verfügung:
-                    </label>
-                    <input type="file" class="form-control" id="file-input-${idx}" accept="application/pdf" />
-                </div>
-                <div class="mb-3">
-                    <button class="btn btn-primary run-llm-btn"
-                            data-prompt-id="${element.PromptID || element.ID}"
-                            data-idx="${idx}">
-                        <i class="bi bi-stars me-1"></i>Empfehlung anfordern
-                    </button>
-                </div>
-                <div id="llm-result-${idx}" class="output-box"></div>
+      html = `
+        <div class="card shadow rounded-4 border-0 mb-4 prompt-block" data-flow-index="${idx}">
+          <div class="card-body p-4">
+            <div class="mb-2">
+              <label class="form-label" for="prompt-input-${idx}">
+                Fragen Sie SANDy, die Sandbox-KI. Beschreiben Sie Ihre Gründe für und wider die Entscheidung und worin die Unsicherheit liegt, damit SANDy eine Empfehlung aussprechen kann.
+              </label>
+              <input type="text" class="form-control" id="prompt-input-${idx}" placeholder="Ihre Beschreibung für SANDy..." />
             </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="file-input-${idx}">
+                (Optional): Stellen Sie SANDy Dokumente zur Auswertung zur Verfügung:
+              </label>
+              <input type="file" class="form-control" id="file-input-${idx}" accept="application/pdf" />
+            </div>
+
+            <div class="mb-3">
+              <button class="btn btn-primary run-llm-btn"
+                      data-prompt-id="${element.PromptID || element.ID}"
+                      data-idx="${idx}">
+                <i class="bi bi-stars me-1"></i>Empfehlung anfordern
+              </button>
+            </div>
+
+            <div id="llm-result-${idx}" class="output-box"></div>
+          </div>
         </div>`;
     }
 
     $('#frage-history').append(html);
     $('html, body').animate({ scrollTop: $(document).height() }, 400);
-}
+  }
 
-    function loadInitialFrage() {
-        $.get('/get_initial_frage', function(data) {
-            $('#frage-history').empty();
-            renderElement(data, 0);
-            flowIndex = 1;
-        }).fail(function(xhr) {
-            $('#frage-history').append('<div class="alert alert-danger">Fehler beim Laden der Initialfrage.</div>');
-            console.error("Fehler beim Laden der Initialfrage:", xhr);
-        });
-    }
-
-    $('#frage-history').on('change', '.antwort-dropdown', function() {
-        let antwort = $(this).val();
-        let currentElementId = $(this).data('id');
-        let parentDiv = $(this).closest('[data-flow-index]');
-        let idx = parseInt(parentDiv.attr('data-flow-index'), 10);
-
-        // Remove all blocks after this one
-        $('[data-flow-index]').filter(function(){
-            return parseInt($(this).attr('data-flow-index'), 10) > idx;
-        }).remove();
-
-        if (!antwort) return;
-
-        flowIndex = idx + 1;
-
-        $.ajax({
-            url: '/next_element',
-            type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({
-                frage_id: currentElementId,
-                antwort: antwort
-            }),
-            success: function(data) {
-                    if (data.done) {
-                      $('#frage-history').append(`
-                        <div class="card shadow rounded-4 border-0 mb-4" data-flow-index="${flowIndex}">
-                          <div class="card-body p-4">
-                            <div class="alert alert-success mb-3">
-                              <i class="bi bi-check-circle me-2"></i>${data.message || "Fragebogen beendet."}
-                            </div>
-
-                            <div class="d-flex justify-content-end gap-2">
-                              <button class="btn btn-outline-secondary rounded-3 download-history-pdf-btn">
-                                <i class="bi bi-filetype-pdf me-1"></i>Verlauf als PDF herunterladen
-                              </button>
-                              <button class="btn btn-outline-primary rounded-3 contact-us-btn">
-                                <i class="bi bi-envelope me-1"></i>Contact us
-                              </button>
-
-                            </div>
-                          </div>
-                        </div>
-                      `);
-
-
-                } else {
-                    renderElement(data, flowIndex);
-                    flowIndex += 1;
-                }
-            },
-            error: function(xhr) {
-                $('#frage-history').append('<div class="alert alert-danger">Fehler beim Laden des nächsten Elements.</div>');
-                console.error("Fehler beim Laden des nächsten Elements:", xhr);
-            }
-        });
+  function loadInitialFrage() {
+    $.get('/get_initial_frage', function(data) {
+      $('#frage-history').empty();
+      renderElement(data, 0);
+      flowIndex = 1;
+    }).fail(function(xhr) {
+      $('#frage-history').append('<div class="alert alert-danger">Fehler beim Laden der Initialfrage.</div>');
+      console.error("Fehler beim Laden der Initialfrage:", xhr);
     });
+  }
 
-    // Handle "Empfehlung anfordern" for Prompt — with spinner
-    $('#frage-history').on('click', '.run-llm-btn', function (e) {
-      e.preventDefault();
-      const $btn = $(this);
-      const idx = $btn.data('idx');
-      const promptId = $btn.data('prompt-id');
+  $('#frage-history').on('change', '.antwort-dropdown', function() {
+    const antwort = $(this).val();
+    const currentElementId = $(this).data('id');
+    const parentDiv = $(this).closest('[data-flow-index]');
+    const idx = parseInt(parentDiv.attr('data-flow-index'), 10);
 
-      const userInput = $(`#prompt-input-${idx}`).val() || "";
-      const fileEl = $(`#file-input-${idx}`)[0];
-      const file = fileEl && fileEl.files ? fileEl.files[0] : null;
+    $('[data-flow-index]').filter(function() {
+      return parseInt($(this).attr('data-flow-index'), 10) > idx;
+    }).remove();
 
-      const $result = $(`#llm-result-${idx}`);
-      const spinner = `
-        <div class="d-flex align-items-center gap-2">
-          <div class="spinner-border" role="status" aria-label="Berechnung läuft"></div>
-          <span>Bitte warten – die Empfehlung wird berechnet…</span>
-        </div>
-      `;
+    if (!antwort) return;
 
-      // show spinner + disable button
-      $result.html(spinner).css('display', 'block');
-      $btn.prop('disabled', true).addClass('disabled');
+    flowIndex = idx + 1;
 
-      const formData = new FormData();
-      formData.append('prompt_id', String(promptId));
-      formData.append('user_input', userInput);
-      if (file) formData.append('file', file);
+    $.ajax({
+      url: '/next_element',
+      type: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({
+        frage_id: currentElementId,
+        antwort: antwort
+      }),
+      success: function(data) {
+        if (data.done) {
+          $('#frage-history').append(`
+            <div class="card shadow rounded-4 border-0 mb-4" data-flow-index="${flowIndex}">
+              <div class="card-body p-4">
+                <div class="alert alert-success mb-3">
+                  <i class="bi bi-check-circle me-2"></i>${escapeHtml(data.message || "Fragebogen beendet.")}
+                </div>
 
-      fetch('/run_prompt', { method: 'POST', body: formData })
-        .then(r => r.json())
-        .then(data => {
-          let html;
-          if (data.result) {
-            html = `<div><strong>Antwort:</strong><br>${data.result}</div>`;
-          } else if (data.error) {
-            html = `Fehler: ${data.error}`;
-          } else {
-            html = "Keine Antwort erhalten.";
-          }
-          $result.html(html);
-        })
-        .catch(() => {
-          $result.html('Fehler beim Ausführen des Prompts.');
-        })
-        .finally(() => {
-          // re-enable button
-          $btn.prop('disabled', false).removeClass('disabled');
-        });
-    });
+                <div class="d-flex justify-content-end gap-2">
+                  <button class="btn btn-outline-secondary rounded-3 download-history-pdf-btn">
+                    <i class="bi bi-filetype-pdf me-1"></i>Verlauf als PDF herunterladen
+                  </button>
 
-    $('#frage-history').on('click', '#restart-btn', function() {
-        $('#frage-history').empty();
-        flowIndex = 0;
-        loadInitialFrage();
-    });
-
-    $("#frage-history").on("click", ".contact-us-btn", function () {
-      contactUs();
-    });
-
-function contactUs() {
-  fetch("/get_email_config", { cache: "no-store" })
-    .then(r => {
-      if (!r.ok) throw new Error("Konfiguration nicht gefunden.");
-      return r.json();
-    })
-    .then(config => {
-      const recipient = encodeURIComponent(config.email_recipient || "");
-      const subject   = encodeURIComponent(config.email_subject || "");
-      const body      = encodeURIComponent(config.email_body || "");
-
-      const mailtoLink = `mailto:${recipient}?subject=${subject}&body=${body}`;
-
-      window.location.href = mailtoLink;
-    })
-    .catch(err => {
-      console.error(err);
-      alert("Email-Konfiguration ist nicht gesetzt.");
-    });
-}
-
-    function _cloneHistoryForPrint() {
-      const original = document.getElementById("frage-history");
-
-      // Build a map of select-id -> current value from the LIVE DOM
-      const selectValues = new Map();
-      original.querySelectorAll("select.antwort-dropdown").forEach(sel => {
-        selectValues.set(sel.id, sel.value || "");
-      });
-
-      const clone = original.cloneNode(true);
-
-      // Make it "print friendly"
-      clone.style.background = "white";
-      clone.style.padding = "0";
-      clone.style.margin = "0";
-
-      // Replace selects with static text using the ORIGINAL value
-      clone.querySelectorAll("select.antwort-dropdown").forEach(sel => {
-        const chosenVal = selectValues.get(sel.id) || "";
-        const label =
-          chosenVal === "ja" ? "Ja" :
-          chosenVal === "nein" ? "Nein" :
-          chosenVal === "unsicher" ? "Unsicher" :
-          "---";
-
-        const span = document.createElement("div");
-        span.style.marginTop = "6px";
-        span.style.fontWeight = "600";
-        span.textContent = `Antwort: ${label}`;
-
-        sel.parentNode.replaceChild(span, sel);
-      });
-
-      // Replace file inputs with a simple marker
-      clone.querySelectorAll('input[type="file"]').forEach(inp => {
-        const span = document.createElement("div");
-        span.style.marginTop = "6px";
-        span.style.fontStyle = "italic";
-        span.textContent = "(Dokument-Upload Feld)";
-        inp.parentNode.replaceChild(span, inp);
-      });
-
-      // Replace text inputs with their content (so typed user prompt appears)
-      clone.querySelectorAll('input[type="text"]').forEach(inp => {
-        const span = document.createElement("div");
-        span.style.marginTop = "6px";
-        span.style.whiteSpace = "pre-wrap";
-        span.textContent = `Eingabe: ${inp.value || ""}`;
-        inp.parentNode.replaceChild(span, inp);
-      });
-
-      // Remove buttons (LLM run button / restart / download etc.)
-      clone.querySelectorAll("button").forEach(btn => btn.remove());
-
-      // Ensure output boxes are visible if they have content
-      clone.querySelectorAll(".output-box").forEach(box => {
-        const text = (box.textContent || "").trim();
-        if (!text) {
-          box.remove();
+                  <button class="btn btn-outline-primary rounded-3 contact-us-btn">
+                    <i class="bi bi-envelope me-1"></i>Contact us
+                  </button>
+                </div>
+              </div>
+            </div>
+          `);
         } else {
-          box.style.display = "block";
-          box.style.whiteSpace = "pre-wrap";
+          renderElement(data, flowIndex);
+          flowIndex += 1;
         }
+      },
+      error: function(xhr) {
+        $('#frage-history').append('<div class="alert alert-danger">Fehler beim Laden des nächsten Elements.</div>');
+        console.error("Fehler beim Laden des nächsten Elements:", xhr);
+      }
+    });
+  });
+
+  $('#frage-history').on('click', '.run-llm-btn', function(e) {
+    e.preventDefault();
+
+    const $btn = $(this);
+    const idx = $btn.data('idx');
+    const promptId = $btn.data('prompt-id');
+
+    const userInput = $(`#prompt-input-${idx}`).val() || "";
+    const fileEl = $(`#file-input-${idx}`)[0];
+    const file = fileEl && fileEl.files ? fileEl.files[0] : null;
+
+    const $result = $(`#llm-result-${idx}`);
+    const spinner = `
+      <div class="d-flex align-items-center gap-2">
+        <div class="spinner-border" role="status" aria-label="Berechnung läuft"></div>
+        <span>Bitte warten – die Empfehlung wird berechnet…</span>
+      </div>
+    `;
+
+    $result.html(spinner).css('display', 'block');
+    $btn.prop('disabled', true).addClass('disabled');
+
+    const formData = new FormData();
+    formData.append('prompt_id', String(promptId));
+    formData.append('user_input', userInput);
+    if (file) formData.append('file', file);
+
+    fetch('/run_prompt', { method: 'POST', body: formData })
+      .then(r => r.json())
+      .then(data => {
+        let html;
+
+        if (data.result) {
+          html = `<div><strong>Antwort:</strong><br>${escapeHtml(data.result)}</div>`;
+        } else if (data.error) {
+          html = `Fehler: ${escapeHtml(data.error)}`;
+        } else {
+          html = "Keine Antwort erhalten.";
+        }
+
+        $result.html(html);
+      })
+      .catch(() => {
+        $result.html('Fehler beim Ausführen des Prompts.');
+      })
+      .finally(() => {
+        $btn.prop('disabled', false).removeClass('disabled');
       });
+  });
 
-      return clone;
-    }
+  $('#frage-history').on('click', '#restart-btn', function() {
+    $('#frage-history').empty();
+    flowIndex = 0;
+    loadInitialFrage();
+  });
 
-    async function downloadHistoryAsPdf() {
-      const { jsPDF } = window.jspdf;
+  $("#frage-history").on("click", ".contact-us-btn", function() {
+    contactUs();
+  });
 
-      // Create an offscreen container to render a clean clone
-      const wrapper = document.createElement("div");
-      wrapper.style.position = "fixed";
-      wrapper.style.left = "-10000px";
-      wrapper.style.top = "0";
-      wrapper.style.width = "800px";         // stable layout for capture
-      wrapper.style.background = "white";
-      wrapper.style.padding = "16px";
-      wrapper.style.fontFamily = "Arial, sans-serif";
-      wrapper.style.color = "#000";
+  function contactUs() {
+    fetch("/get_email_config", { cache: "no-store" })
+      .then(r => {
+        if (!r.ok) throw new Error("Konfiguration nicht gefunden.");
+        return r.json();
+      })
+      .then(config => {
+        const recipient = encodeURIComponent(config.email_recipient || "");
+        const subject = encodeURIComponent(config.email_subject || "");
+        const body = encodeURIComponent(config.email_body || "");
+        const mailtoLink = `mailto:${recipient}?subject=${subject}&body=${body}`;
 
-      // Header
-      const header = document.createElement("div");
-      header.innerHTML = `
-        <div style="font-size:18px;font-weight:700;margin-bottom:4px;">Fragebogen – Verlauf</div>
-        <div style="font-size:11px;color:#333;margin-bottom:12px;">Exportiert am: ${new Date().toLocaleString("de-DE")}</div>
-      `;
-      wrapper.appendChild(header);
-
-      // Clone current history
-      const clone = _cloneHistoryForPrint();
-      wrapper.appendChild(clone);
-      document.body.appendChild(wrapper);
-
-      // Render to canvas
-      const canvas = await html2canvas(wrapper, {
-        scale: 2,                // quality
-        backgroundColor: "#ffffff",
-        useCORS: true
+        window.location.href = mailtoLink;
+      })
+      .catch(err => {
+        console.error(err);
+        alert("Email-Konfiguration ist nicht gesetzt.");
       });
+  }
 
-      // Build PDF (A4)
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
+  function getSelectedAnswerLabel(selectEl) {
+    const value = selectEl.value || "";
 
-      // Convert canvas to image and paginate
-      const imgData = canvas.toDataURL("image/png");
-      const imgProps = pdf.getImageProperties(imgData);
+    if (value === "ja") return "Ja";
+    if (value === "nein") return "Nein";
+    if (value === "unsicher") return "Nicht sicher";
 
-      // Calculate dimensions to fit width
-      const pdfWidth = pageWidth;
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    return "---";
+  }
 
-      let position = 0;
-      let heightLeft = pdfHeight;
+  function collectQuestionnaireExportData() {
+    const items = [];
 
-      pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pageHeight;
+    document.querySelectorAll("#frage-history [data-flow-index]").forEach((block, index) => {
+      const title = (block.querySelector("h5")?.innerText || "").trim();
 
-      while (heightLeft > 0) {
-        pdf.addPage();
-        position = - (pdfHeight - heightLeft);
-        pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pageHeight;
+      if (block.classList.contains("frage-block")) {
+        const questionText = (block.querySelector("p.fs-5")?.innerText || "").trim();
+        const bem = (block.querySelector(".fst-italic")?.innerText || "").trim();
+        const select = block.querySelector("select.antwort-dropdown");
+
+        items.push({
+          type: "Frage",
+          number: index + 1,
+          title: title,
+          text: questionText,
+          bem: bem,
+          answer: select ? getSelectedAnswerLabel(select) : "---"
+        });
       }
 
-      // Cleanup
-      document.body.removeChild(wrapper);
+      else if (block.classList.contains("prompt-block")) {
+        const promptLabel = (block.querySelector("label[for^='prompt-input']")?.innerText || "").trim();
+        const userInput = (block.querySelector("input[type='text']")?.value || "").trim();
+        const llmResult = (block.querySelector(".output-box")?.innerText || "").trim();
 
-      // Save
-      const filename = `fragebogen_verlauf_${new Date().toISOString().slice(0,10)}.pdf`;
-      pdf.save(filename);
-    }
+        items.push({
+          type: "SANDy-Unterstützung",
+          number: index + 1,
+          title: "SANDy-Unterstützung",
+          text: promptLabel,
+          userInput: userInput,
+          llmResult: llmResult
+        });
+      }
 
-    $("#frage-history").on("click", ".download-history-pdf-btn", async function () {
-      const $btn = $(this);
-      const oldHtml = $btn.html();
-      try {
-        $btn.prop("disabled", true).addClass("disabled")
-          .html('<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>PDF wird erstellt…');
-        await downloadHistoryAsPdf();
-      } catch (e) {
-        console.error(e);
-        alert("Fehler beim Erstellen der PDF-Datei: " + (e?.message || e));
-      } finally {
-        $btn.prop("disabled", false).removeClass("disabled").html(oldHtml);
+      else if (block.classList.contains("antwort-block")) {
+        const answerText = (block.querySelector("p.fs-5")?.innerText || "").trim();
+
+        items.push({
+          type: "Ergebnis",
+          number: index + 1,
+          title: title,
+          text: answerText
+        });
+      }
+
+      else {
+        const doneText = (block.innerText || "").trim();
+        if (doneText) {
+          items.push({
+            type: "Abschluss",
+            number: index + 1,
+            title: "Abschluss",
+            text: doneText
+          });
+        }
       }
     });
 
-    $(document).ready(function() {
-        loadInitialFrage();
+    return items;
+  }
+
+  function addWrappedText(doc, text, x, y, maxWidth, lineHeight) {
+    const lines = doc.splitTextToSize(text || "", maxWidth);
+    lines.forEach(line => {
+      if (y > 280) {
+        doc.addPage();
+        y = 20;
+      }
+
+      doc.text(line, x, y);
+      y += lineHeight;
     });
+
+    return y;
+  }
+
+  function addSectionSpacing(doc, y) {
+    if (y > 270) {
+      doc.addPage();
+      return 20;
+    }
+    return y + 6;
+  }
+
+  function downloadHistoryAsPdf() {
+    const { jsPDF } = window.jspdf;
+
+    const doc = new jsPDF({
+      orientation: "p",
+      unit: "mm",
+      format: "a4",
+      compress: true
+    });
+
+    const marginLeft = 15;
+    const marginRight = 15;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const usableWidth = pageWidth - marginLeft - marginRight;
+    const lineHeight = 5;
+
+    let y = 18;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("Fragebogen – Verlauf", marginLeft, y);
+    y += 8;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`Exportiert am: ${new Date().toLocaleString("de-DE")}`, marginLeft, y);
+    y += 10;
+
+    const items = collectQuestionnaireExportData();
+
+    items.forEach(item => {
+      if (y > 265) {
+        doc.addPage();
+        y = 20;
+      }
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      y = addWrappedText(doc, `${item.number}. ${item.type}: ${item.title || ""}`, marginLeft, y, usableWidth, lineHeight);
+      y += 2;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+
+      if (item.type === "Frage") {
+        y = addWrappedText(doc, `Frage: ${item.text}`, marginLeft, y, usableWidth, lineHeight);
+
+        if (item.bem) {
+          y = addWrappedText(doc, `Hinweis: ${item.bem}`, marginLeft, y, usableWidth, lineHeight);
+        }
+
+        y = addWrappedText(doc, `Antwort: ${item.answer}`, marginLeft, y, usableWidth, lineHeight);
+      }
+
+      else if (item.type === "SANDy-Unterstützung") {
+        y = addWrappedText(doc, item.text, marginLeft, y, usableWidth, lineHeight);
+        y = addWrappedText(doc, `Eingabe: ${item.userInput || "-"}`, marginLeft, y, usableWidth, lineHeight);
+
+        if (item.llmResult) {
+          y = addWrappedText(doc, `SANDy-Antwort: ${item.llmResult}`, marginLeft, y, usableWidth, lineHeight);
+        }
+      }
+
+      else {
+        y = addWrappedText(doc, item.text, marginLeft, y, usableWidth, lineHeight);
+      }
+
+      y = addSectionSpacing(doc, y);
+    });
+
+    const filename = `fragebogen_verlauf_${new Date().toISOString().slice(0, 10)}.pdf`;
+    doc.save(filename);
+  }
+
+  $("#frage-history").on("click", ".download-history-pdf-btn", async function() {
+    const $btn = $(this);
+    const oldHtml = $btn.html();
+
+    try {
+      $btn.prop("disabled", true).addClass("disabled")
+        .html('<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>PDF wird erstellt…');
+
+      downloadHistoryAsPdf();
+    } catch (e) {
+      console.error(e);
+      alert("Fehler beim Erstellen der PDF-Datei: " + (e?.message || e));
+    } finally {
+      $btn.prop("disabled", false).removeClass("disabled").html(oldHtml);
+    }
+  });
+
+  $(document).ready(function() {
+    loadInitialFrage();
+  });
 </script>
 {% endblock %}
