@@ -1,0 +1,99 @@
+{% extends 'index.html' %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+  <div class="card shadow rounded-4 border-0">
+    <div class="card-body p-4">
+      <h2 class="mb-4 text-primary">
+        <i class="bi bi-envelope-gear me-2"></i>Kontakt-E-Mails konfigurieren
+      </h2>
+
+      <form id="contactEmailConfigForm" autocomplete="off">
+        <h5 class="mb-3">Interne Benachrichtigung</h5>
+
+        <div class="mb-3">
+          <label class="form-label">Empfängeradresse</label>
+          <input type="email" class="form-control rounded-3" id="notification_recipient" required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Betreff</label>
+          <input type="text" class="form-control rounded-3" id="notification_subject" required>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label">Text</label>
+          <textarea class="form-control rounded-3" id="notification_body" rows="6"></textarea>
+        </div>
+
+        <hr class="my-4">
+
+        <h5 class="mb-3">Bestätigung an Unternehmen / Behörde / Einrichtung</h5>
+
+        <div class="mb-3">
+          <label class="form-label">Betreff</label>
+          <input type="text" class="form-control rounded-3" id="company_subject" required>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label">Text</label>
+          <textarea class="form-control rounded-3" id="company_body" rows="8"></textarea>
+        </div>
+
+        <button type="button" class="btn btn-primary px-4 rounded-3 shadow-sm" onclick="saveConfig()">
+          <i class="bi bi-save me-1"></i>Speichern
+        </button>
+      </form>
+
+      <p id="statusMessage" class="mt-3"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+function loadConfig() {
+  fetch("/get_contact_email_config", { cache: "no-store" })
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById("notification_recipient").value = data.notification.recipient || "";
+      document.getElementById("notification_subject").value = data.notification.subject || "";
+      document.getElementById("notification_body").value = data.notification.body || "";
+
+      document.getElementById("company_subject").value = data.company.subject || "";
+      document.getElementById("company_body").value = data.company.body || "";
+    })
+    .catch(() => {
+      document.getElementById("statusMessage").textContent = "Fehler beim Laden der Konfiguration.";
+    });
+}
+
+function saveConfig() {
+  const payload = {
+    notification: {
+      recipient: document.getElementById("notification_recipient").value,
+      subject: document.getElementById("notification_subject").value,
+      body: document.getElementById("notification_body").value
+    },
+    company: {
+      subject: document.getElementById("company_subject").value,
+      body: document.getElementById("company_body").value
+    }
+  };
+
+  fetch("/save_contact_email_config", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById("statusMessage").textContent = data.message || "Gespeichert.";
+  })
+  .catch(() => {
+    document.getElementById("statusMessage").textContent = "Fehler beim Speichern.";
+  });
+}
+
+document.addEventListener("DOMContentLoaded", loadConfig);
+</script>
+{% endblock %}

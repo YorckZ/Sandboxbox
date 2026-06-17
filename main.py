@@ -878,39 +878,190 @@ def save_llm_config():
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
 
 def send_email(recipient: str, subject: str, body: str):
-    smtp_host = "smtp.example.com"
-    smtp_port = 587
+    cfg = db.get_smtp_config()
 
-    smtp_user = "user@example.com"
-    smtp_password = "secret"
+    if not cfg:
+        raise RuntimeError("SMTP-Konfiguration fehlt.")
+
+    smtp_host = cfg.get("smtp_host")
+    smtp_port = int(cfg.get("smtp_port") or 587)
+    smtp_user = cfg.get("smtp_user")
+    smtp_password = cfg.get("smtp_password")
+    smtp_from = cfg.get("smtp_from") or smtp_user
+    use_tls = bool(cfg.get("use_tls"))
+
+    if not smtp_host or not smtp_user or not smtp_password or not smtp_from:
+        raise RuntimeError("SMTP-Konfiguration ist unvollständig.")
 
     msg = MIMEMultipart()
-    msg["From"] = smtp_user
+    msg["From"] = smtp_from
     msg["To"] = recipient
     msg["Subject"] = subject
 
-    msg.attach(MIMEText(body, "plain", "utf-8"))
+    msg.attach(MIMEText(body or "", "plain", "utf-8"))
 
-    with smtplib.SMTP(smtp_host, smtp_port) as server:
-        server.starttls()
+    with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as server:
+        if use_tls:
+            server.starttls()
+
         server.login(smtp_user, smtp_password)
         server.send_message(msg)
+
+@app.route("/smtp_konfigurieren")
+def smtp_konfigurieren():
+    return render_template("_smtp_konfigurieren.html")
+
+
+@app.route("/get_smtp_config", methods=["GET"])
+def get_smtp_config():
+    return jsonify(db.get_smtp_config_safe())
+
+
+@app.route("/save_smtp_config", methods=["POST"])
+def save_smtp_config():
+    try:
+        data = request.get_json() or {}
+
+        current = db.get_smtp_config() or {}
+
+        smtp_host = (data.get("smtp_host") or "").strip()
+        smtp_port = int(data.get("smtp_port") or 587)
+        smtp_user = (data.get("smtp_user") or "").strip()
+
+        new_password = (data.get("smtp_password") or "").strip()
+        smtp_password = new_password or current.get("smtp_password", "")
+
+        smtp_from = (data.get("smtp_from") or "").strip()
+        use_tls = bool(data.get("use_tls", True))
+
+        if not smtp_host or not smtp_user or not smtp_password or not smtp_from:
+            return jsonify({
+                "message": "SMTP-Host, Benutzer, Passwort und Absenderadresse sind erforderlich."
+            }), 400
+
+        db.set_smtp_config(
+            smtp_host=smtp_host,
+            smtp_port=smtp_port,
+            smtp_user=smtp_user,
+            smtp_password=smtp_password,
+            smtp_from=smtp_from,
+            use_tls=use_tls
+        )
+
+        return jsonify({"message": "SMTP-Konfiguration erfolgreich gespeichert!"})
+
+    except Exception as e:
+        return jsonify({"message": f"Fehler: {str(e)}"}), 500
+
+# @app.route("/send_contact_email", methods=["POST"])
+# def send_contact_email():
+#     try:
+#         data = request.get_json() or {}
+#
+#         name = data.get("name", "")
+#         company = data.get("company", "")
+#         position = data.get("position", "")
+#         phone = data.get("phone", "")
+#         email = data.get("email", "")
+#         message = data.get("message", "")
+#
+#         return jsonify({
+#             "success": True
+#         })
+#
+#     except Exception as e:
+#         return jsonify({
+#             "success": False,
+#             "message": str(e)
+#         }), 500
+
+def _format_contact_request_email(data: dict, contact_id: int) -> str:
+    return f"""
+Neue Kontaktanfrage #{contact_id}
+
+Name des Unternehmens / der Behörde / der Einrichtung:
+{data.get("organisation_name", "")}
+
+Sitz des Unternehmens / der Behörde / der Einrichtung:
+{data.get("organisation_location", "")}
+
+Kontaktperson:
+{data.get("contact_person", "")}
+
+Durchwahl:
+{data.get("phone_extension", "")}
+
+Email-Adresse:
+{data.get("email", "")}
+
+Produkt- / Dienstleistungs- / Anwendungsbeschreibung:
+{data.get("product_description", "")}
+
+Zweck des Produkts bzw. der Dienstleistung bzw. der Anwendung:
+{data.get("product_purpose", "")}
+
+Entwicklungsstadium des Produkts bzw. der Dienstleistung bzw. der Anwendung:
+{data.get("development_stage", "")}
+
+Welche Kategorien personenbezogener Daten werden voraussichtlich verarbeitet, warum erfolgt eine Verarbeitung und was ist der Output der Datenverarbeitung?
+{data.get("data_categories_processing_output", "")}
+
+Welche spezifischen Fragen sollen adressiert werden, welche Probleme in Bezug auf personenbezogene Daten wurden identifiziert?
+{data.get("specific_questions_problems", "")}
+
+Zeitplan für die Teilnahme:
+{data.get("participation_timeline", "")}
+""".strip()
+
 
 @app.route("/send_contact_email", methods=["POST"])
 def send_contact_email():
     try:
         data = request.get_json() or {}
 
-        name = data.get("name", "")
-        company = data.get("company", "")
-        position = data.get("position", "")
-        phone = data.get("phone", "")
-        email = data.get("email", "")
-        message = data.get("message", "")
+        required = ["organisation_name", "contact_person", "email"]
+        missing = [field for field in required if not (data.get(field) or "").strip()]
+        if missing:
+            return jsonify({
+                "success": False,
+                "message": "Pflichtfelder fehlen."
+            }), 400
 
-        return jsonify({
-            "success": True
-        })
+        contact_id = db.create_contact_request(data)
+
+        notification_cfg = db.get_contact_notification_config()
+        company_cfg = db.get_contact_company_email_config()
+
+        if not notification_cfg:
+            return jsonify({
+                "success": False,
+                "message": "Benachrichtigungs-E-Mail ist nicht konfiguriert."
+            }), 400
+
+        if not company_cfg:
+            return jsonify({
+                "success": False,
+                "message": "Bestätigungs-E-Mail für Unternehmen ist nicht konfiguriert."
+            }), 400
+
+        notification_body = (notification_cfg.get("body") or "").strip()
+        notification_body += "\n\n" + _format_contact_request_email(data, contact_id)
+
+        send_email(
+            recipient=notification_cfg["recipient"],
+            subject=notification_cfg["subject"],
+            body=notification_body
+        )
+
+        company_body = (company_cfg.get("body") or "").strip()
+
+        send_email(
+            recipient=data["email"],
+            subject=company_cfg["subject"],
+            body=company_body
+        )
+
+        return jsonify({"success": True, "contact_id": contact_id})
 
     except Exception as e:
         return jsonify({
@@ -918,6 +1069,62 @@ def send_contact_email():
             "message": str(e)
         }), 500
 
+@app.route("/kontakt_email_konfigurieren")
+def kontakt_email_konfigurieren():
+    return render_template("_kontakt_email_konfigurieren.html")
+
+
+@app.route("/get_contact_email_config", methods=["GET"])
+def get_contact_email_config():
+    return jsonify({
+        "notification": db.get_contact_notification_config() or {
+            "recipient": "",
+            "subject": "",
+            "body": ""
+        },
+        "company": db.get_contact_company_email_config() or {
+            "subject": "",
+            "body": ""
+        }
+    })
+
+
+@app.route("/save_contact_email_config", methods=["POST"])
+def save_contact_email_config():
+    try:
+        data = request.get_json() or {}
+
+        notification = data.get("notification") or {}
+        company = data.get("company") or {}
+
+        notification_recipient = (notification.get("recipient") or "").strip()
+        notification_subject = (notification.get("subject") or "").strip()
+        notification_body = notification.get("body") or ""
+
+        company_subject = (company.get("subject") or "").strip()
+        company_body = company.get("body") or ""
+
+        if not notification_recipient or not notification_subject:
+            return jsonify({"message": "Empfänger und Betreff der Benachrichtigung sind erforderlich."}), 400
+
+        if not company_subject:
+            return jsonify({"message": "Betreff der Unternehmens-E-Mail ist erforderlich."}), 400
+
+        db.set_contact_notification_config(
+            recipient=notification_recipient,
+            subject=notification_subject,
+            body=notification_body
+        )
+
+        db.set_contact_company_email_config(
+            subject=company_subject,
+            body=company_body
+        )
+
+        return jsonify({"message": "Kontakt-E-Mail-Konfiguration erfolgreich gespeichert!"})
+
+    except Exception as e:
+        return jsonify({"message": f"Fehler: {str(e)}"}), 500
 
 # </editor-fold>
 

@@ -102,6 +102,55 @@ def init_db():
         )
     """)
 
+    cursor.execute("""
+                   CREATE TABLE IF NOT EXISTS tbl_contact_requests(
+                       ID INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+                       organisation_name TEXT NOT NULL,
+                       organisation_location TEXT,
+                       contact_person TEXT NOT NULL,
+                       phone_extension TEXT,
+                       email TEXT NOT NULL,
+
+                       product_description TEXT,
+                       product_purpose TEXT,
+                       development_stage TEXT,
+                       data_categories_processing_output TEXT,
+                       specific_questions_problems TEXT,
+                       participation_timeline TEXT
+                        )
+                   """)
+
+    cursor.execute("""
+                   CREATE TABLE IF NOT EXISTS tbl_contact_notification_config (
+                       ID INTEGER NOT NULL PRIMARY KEY,
+                       recipient TEXT NOT NULL,
+                       subject TEXT NOT NULL,
+                       body TEXT
+                   )
+                   """)
+
+    cursor.execute("""
+                   CREATE TABLE IF NOT EXISTS tbl_contact_company_email_config (
+                       ID INTEGER NOT NULL PRIMARY KEY,
+                       subject TEXT NOT NULL,
+                       body TEXT
+                   )
+                   """)
+
+    cursor.execute("""
+                   CREATE TABLE IF NOT EXISTS tbl_smtp_config (
+                       ID INTEGER NOT NULL PRIMARY KEY,
+                       smtp_host TEXT NOT NULL,
+                       smtp_port INTEGER NOT NULL DEFAULT 587,
+                       smtp_user TEXT NOT NULL,
+                       smtp_password TEXT NOT NULL,
+                       smtp_from TEXT NOT NULL,
+                       use_tls BOOLEAN NOT NULL DEFAULT 1
+                   )
+                   """)
+
     conn.commit()
     close_connection(conn)
 
@@ -767,6 +816,245 @@ def get_llm_config_safe():
     cfg["openai_api_key"] = ""
 
     return cfg
+
+def create_contact_request(data: dict) -> int:
+    conn, cursor = open_connection()
+    try:
+        cursor.execute("""
+            INSERT INTO tbl_contact_requests (
+                organisation_name,
+                organisation_location,
+                contact_person,
+                phone_extension,
+                email,
+                product_description,
+                product_purpose,
+                development_stage,
+                data_categories_processing_output,
+                specific_questions_problems,
+                participation_timeline
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            data.get("organisation_name", ""),
+            data.get("organisation_location", ""),
+            data.get("contact_person", ""),
+            data.get("phone_extension", ""),
+            data.get("email", ""),
+            data.get("product_description", ""),
+            data.get("product_purpose", ""),
+            data.get("development_stage", ""),
+            data.get("data_categories_processing_output", ""),
+            data.get("specific_questions_problems", ""),
+            data.get("participation_timeline", "")
+        ))
+
+        contact_id = cursor.lastrowid
+        conn.commit()
+        return contact_id
+    finally:
+        close_connection(conn)
+
+
+def get_all_contact_requests():
+    conn, cursor = open_connection()
+    try:
+        cursor.execute("""
+            SELECT
+                ID,
+                created_at,
+                organisation_name,
+                organisation_location,
+                contact_person,
+                phone_extension,
+                email,
+                product_description,
+                product_purpose,
+                development_stage,
+                data_categories_processing_output,
+                specific_questions_problems,
+                participation_timeline
+            FROM tbl_contact_requests
+            ORDER BY created_at DESC
+        """)
+        rows = cursor.fetchall()
+
+        keys = [
+            "ID", "created_at", "organisation_name", "organisation_location",
+            "contact_person", "phone_extension", "email", "product_description",
+            "product_purpose", "development_stage",
+            "data_categories_processing_output", "specific_questions_problems",
+            "participation_timeline"
+        ]
+
+        return [dict(zip(keys, row)) for row in rows]
+    finally:
+        close_connection(conn)
+
+
+def set_contact_notification_config(recipient: str, subject: str, body: str):
+    conn, cursor = open_connection()
+    try:
+        cursor.execute("""
+            INSERT INTO tbl_contact_notification_config (ID, recipient, subject, body)
+            VALUES (1, ?, ?, ?)
+            ON CONFLICT(ID) DO UPDATE SET
+                recipient = excluded.recipient,
+                subject = excluded.subject,
+                body = excluded.body
+        """, (recipient, subject, body))
+        conn.commit()
+    finally:
+        close_connection(conn)
+
+
+def get_contact_notification_config():
+    conn, cursor = open_connection()
+    try:
+        cursor.execute("""
+            SELECT recipient, subject, body
+            FROM tbl_contact_notification_config
+            WHERE ID = 1
+        """)
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return {"recipient": row[0] or "", "subject": row[1] or "", "body": row[2] or ""}
+    finally:
+        close_connection(conn)
+
+
+def set_contact_company_email_config(subject: str, body: str):
+    conn, cursor = open_connection()
+    try:
+        cursor.execute("""
+            INSERT INTO tbl_contact_company_email_config (ID, subject, body)
+            VALUES (1, ?, ?)
+            ON CONFLICT(ID) DO UPDATE SET
+                subject = excluded.subject,
+                body = excluded.body
+        """, (subject, body))
+        conn.commit()
+    finally:
+        close_connection(conn)
+
+
+def get_contact_company_email_config():
+    conn, cursor = open_connection()
+    try:
+        cursor.execute("""
+            SELECT subject, body
+            FROM tbl_contact_company_email_config
+            WHERE ID = 1
+        """)
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return {"subject": row[0] or "", "body": row[1] or ""}
+    finally:
+        close_connection(conn)
+
+
+def set_smtp_config(
+    smtp_host: str,
+    smtp_port: int,
+    smtp_user: str,
+    smtp_password: str,
+    smtp_from: str,
+    use_tls: bool
+):
+    conn, cursor = open_connection()
+    try:
+        cursor.execute("SELECT COUNT(*) FROM tbl_smtp_config WHERE ID = 1")
+        exists = cursor.fetchone()[0]
+
+        if exists:
+            cursor.execute("""
+                UPDATE tbl_smtp_config
+                SET smtp_host = ?,
+                    smtp_port = ?,
+                    smtp_user = ?,
+                    smtp_password = ?,
+                    smtp_from = ?,
+                    use_tls = ?
+                WHERE ID = 1
+            """, (
+                smtp_host,
+                smtp_port,
+                smtp_user,
+                smtp_password,
+                smtp_from,
+                int(use_tls)
+            ))
+        else:
+            cursor.execute("""
+                INSERT INTO tbl_smtp_config (
+                    ID,
+                    smtp_host,
+                    smtp_port,
+                    smtp_user,
+                    smtp_password,
+                    smtp_from,
+                    use_tls
+                )
+                VALUES (1, ?, ?, ?, ?, ?, ?)
+            """, (
+                smtp_host,
+                smtp_port,
+                smtp_user,
+                smtp_password,
+                smtp_from,
+                int(use_tls)
+            ))
+
+        conn.commit()
+    finally:
+        close_connection(conn)
+
+
+def get_smtp_config():
+    conn, cursor = open_connection()
+    try:
+        cursor.execute("""
+            SELECT smtp_host, smtp_port, smtp_user, smtp_password, smtp_from, use_tls
+            FROM tbl_smtp_config
+            WHERE ID = 1
+        """)
+        row = cursor.fetchone()
+
+        if not row:
+            return None
+
+        return {
+            "smtp_host": row[0] or "",
+            "smtp_port": row[1] or 587,
+            "smtp_user": row[2] or "",
+            "smtp_password": row[3] or "",
+            "smtp_from": row[4] or "",
+            "use_tls": bool(row[5])
+        }
+    finally:
+        close_connection(conn)
+
+
+def get_smtp_config_safe():
+    cfg = get_smtp_config()
+    if not cfg:
+        return {
+            "smtp_host": "",
+            "smtp_port": 587,
+            "smtp_user": "",
+            "smtp_password": "",
+            "smtp_password_set": False,
+            "smtp_from": "",
+            "use_tls": True
+        }
+
+    password = cfg.get("smtp_password") or ""
+    cfg["smtp_password_set"] = bool(password)
+    cfg["smtp_password"] = ""
+    return cfg
+
 
 # ===========================================================================================================
 

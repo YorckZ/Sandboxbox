@@ -70,7 +70,7 @@
 
             <p class="fs-5 mb-4">${escapeHtml(element.Text || "")}</p>
 
-            <div class="d-flex justify-content-end gap-2">
+            <div class="d-flex justify-content-end gap-2 flex-wrap">
               <button class="btn btn-outline-secondary rounded-3 download-history-pdf-btn">
                 <i class="bi bi-filetype-pdf me-1"></i>Verlauf als PDF herunterladen
               </button>
@@ -92,34 +92,64 @@
               </div>
 
               <div class="row g-3">
-                <div class="col-12 col-md-6">
-                  <label class="form-label">Mein Name</label>
-                  <input type="text" class="form-control" name="contact_name" required>
-                </div>
-
-                <div class="col-12 col-md-6">
-                  <label class="form-label">Mein Unternehmen</label>
-                  <input type="text" class="form-control" name="contact_company" required>
-                </div>
-
-                <div class="col-12 col-md-6">
-                  <label class="form-label">Meine Position</label>
-                  <input type="text" class="form-control" name="contact_position">
-                </div>
-
-                <div class="col-12 col-md-6">
-                  <label class="form-label">Meine Rufnummer</label>
-                  <input type="tel" class="form-control" name="contact_phone">
+                <div class="col-12">
+                  <label class="form-label">Name des Unternehmens / der Behörde / der Einrichtung *</label>
+                  <input type="text" class="form-control" name="organisation_name" required>
                 </div>
 
                 <div class="col-12">
-                  <label class="form-label">Meine E-Mail-Adresse</label>
-                  <input type="email" class="form-control" name="contact_email" required>
+                  <label class="form-label">Sitz des Unternehmens / der Behörde / der Einrichtung</label>
+                  <input type="text" class="form-control" name="organisation_location">
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Kontaktperson *</label>
+                  <input type="text" class="form-control" name="contact_person" required>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Durchwahl</label>
+                  <input type="text" class="form-control" name="phone_extension">
                 </div>
 
                 <div class="col-12">
-                  <label class="form-label">Freitext</label>
-                  <textarea class="form-control" name="contact_message" rows="6"></textarea>
+                  <label class="form-label">Email-Adresse *</label>
+                  <input type="email" class="form-control" name="email" required>
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label">Produkt- / Dienstleistungs- / Anwendungsbeschreibung</label>
+                  <textarea class="form-control" name="product_description" rows="4"></textarea>
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label">Zweck des Produkts bzw. der Dienstleistung bzw. der Anwendung</label>
+                  <textarea class="form-control" name="product_purpose" rows="4"></textarea>
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label">Entwicklungsstadium des Produkts bzw. der Dienstleistung bzw. der Anwendung</label>
+                  <textarea class="form-control" name="development_stage" rows="3"></textarea>
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label">
+                    Welche Kategorien personenbezogener Daten werden voraussichtlich verarbeitet,
+                    warum erfolgt eine Verarbeitung und was ist der Output der Datenverarbeitung?
+                  </label>
+                  <textarea class="form-control" name="data_categories_processing_output" rows="5"></textarea>
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label">
+                    Welche spezifischen Fragen sollen adressiert werden, welche Probleme in Bezug auf personenbezogene Daten wurden identifiziert?
+                  </label>
+                  <textarea class="form-control" name="specific_questions_problems" rows="5"></textarea>
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label">Zeitplan für die Teilnahme</label>
+                  <textarea class="form-control" name="participation_timeline" rows="3"></textarea>
                 </div>
 
                 <div class="col-12 d-flex justify-content-end">
@@ -401,7 +431,7 @@
                   <i class="bi bi-check-circle me-2"></i>${escapeHtml(data.message || "Fragebogen beendet.")}
                 </div>
 
-                <div class="d-flex justify-content-end gap-2">
+                <div class="d-flex justify-content-end gap-2 flex-wrap">
                   <button class="btn btn-outline-secondary rounded-3 download-history-pdf-btn">
                     <i class="bi bi-filetype-pdf me-1"></i>Verlauf als PDF herunterladen
                   </button>
@@ -511,49 +541,56 @@
   });
 
   $("#frage-history").on("click", ".contact-send-btn", function() {
+    const $btn = $(this);
+    const $formArea = $btn.closest(".contact-form-area");
 
-  const $formArea = $(this).closest(".contact-form-area");
+    const payload = {
+      organisation_name: $formArea.find("[name='organisation_name']").val().trim(),
+      organisation_location: $formArea.find("[name='organisation_location']").val().trim(),
+      contact_person: $formArea.find("[name='contact_person']").val().trim(),
+      phone_extension: $formArea.find("[name='phone_extension']").val().trim(),
+      email: $formArea.find("[name='email']").val().trim(),
+      product_description: $formArea.find("[name='product_description']").val().trim(),
+      product_purpose: $formArea.find("[name='product_purpose']").val().trim(),
+      development_stage: $formArea.find("[name='development_stage']").val().trim(),
+      data_categories_processing_output: $formArea.find("[name='data_categories_processing_output']").val().trim(),
+      specific_questions_problems: $formArea.find("[name='specific_questions_problems']").val().trim(),
+      participation_timeline: $formArea.find("[name='participation_timeline']").val().trim()
+    };
 
-  const name = $formArea.find("[name='contact_name']").val().trim();
-  const company = $formArea.find("[name='contact_company']").val().trim();
-  const position = $formArea.find("[name='contact_position']").val().trim();
-  const phone = $formArea.find("[name='contact_phone']").val().trim();
-  const email = $formArea.find("[name='contact_email']").val().trim();
-  const message = $formArea.find("[name='contact_message']").val().trim();
-
-  if (!name || !company || !email) {
-    alert("Bitte füllen Sie die Pflichtfelder aus: Mein Name, Mein Unternehmen und Meine E-Mail-Adresse.");
-    return;
-  }
-
-  fetch("/send_contact_email", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      name,
-      company,
-      position,
-      phone,
-      email,
-      message
-    })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.success) {
-      alert("Anfrage wurde versendet.");
-    } else {
-      alert(data.message || "Fehler beim Versand.");
+    if (!payload.organisation_name || !payload.contact_person || !payload.email) {
+      alert("Bitte füllen Sie die Pflichtfelder aus: Name der Organisation, Kontaktperson und Email-Adresse.");
+      return;
     }
-  })
-  .catch(err => {
-    console.error(err);
-    alert("Technischer Fehler.");
-  });
 
-});
+    $btn.prop("disabled", true).addClass("disabled")
+      .html('<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Wird gesendet…');
+
+    fetch("/send_contact_email", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        alert("Anfrage wurde gespeichert und versendet.");
+        $formArea.slideUp(200);
+      } else {
+        alert(data.message || "Fehler beim Versand.");
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Technischer Fehler.");
+    })
+    .finally(() => {
+      $btn.prop("disabled", false).removeClass("disabled")
+        .html('<i class="bi bi-send me-1"></i>Senden');
+    });
+  });
 
   $(document).ready(function() {
     loadInitialFrage();
