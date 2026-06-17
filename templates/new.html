@@ -75,10 +75,61 @@
                 <i class="bi bi-filetype-pdf me-1"></i>Verlauf als PDF herunterladen
               </button>
 
+              <button class="btn btn-outline-primary rounded-3 send-mail-btn">
+                <i class="bi bi-envelope me-1"></i>Send a Mail
+              </button>
+
               <button class="btn btn-outline-primary rounded-3 contact-us-btn">
                 <i class="bi bi-envelope me-1"></i>Contact us
               </button>
             </div>
+
+            <div class="contact-form-area mt-4" style="display:none;">
+              <hr>
+
+              <div class="text-muted small mb-3">
+                * Pflichtfeld
+              </div>
+
+              <div class="row g-3">
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Mein Name</label>
+                  <input type="text" class="form-control" name="contact_name" required>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Mein Unternehmen</label>
+                  <input type="text" class="form-control" name="contact_company" required>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Meine Position</label>
+                  <input type="text" class="form-control" name="contact_position">
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Meine Rufnummer</label>
+                  <input type="tel" class="form-control" name="contact_phone">
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label">Meine E-Mail-Adresse</label>
+                  <input type="email" class="form-control" name="contact_email" required>
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label">Freitext</label>
+                  <textarea class="form-control" name="contact_message" rows="6"></textarea>
+                </div>
+
+                <div class="col-12 d-flex justify-content-end">
+                  <button type="button" class="btn btn-primary rounded-3 contact-send-btn">
+                    <i class="bi bi-send me-1"></i>Senden
+                  </button>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>`;
     }
@@ -127,141 +178,6 @@
       $('#frage-history').append('<div class="alert alert-danger">Fehler beim Laden der Initialfrage.</div>');
       console.error("Fehler beim Laden der Initialfrage:", xhr);
     });
-  }
-
-  $('#frage-history').on('change', '.antwort-dropdown', function() {
-    const antwort = $(this).val();
-    const currentElementId = $(this).data('id');
-    const parentDiv = $(this).closest('[data-flow-index]');
-    const idx = parseInt(parentDiv.attr('data-flow-index'), 10);
-
-    $('[data-flow-index]').filter(function() {
-      return parseInt($(this).attr('data-flow-index'), 10) > idx;
-    }).remove();
-
-    if (!antwort) return;
-
-    flowIndex = idx + 1;
-
-    $.ajax({
-      url: '/next_element',
-      type: 'POST',
-      contentType: 'application/json',
-      data: JSON.stringify({
-        frage_id: currentElementId,
-        antwort: antwort
-      }),
-      success: function(data) {
-        if (data.done) {
-          $('#frage-history').append(`
-            <div class="card shadow rounded-4 border-0 mb-4" data-flow-index="${flowIndex}">
-              <div class="card-body p-4">
-                <div class="alert alert-success mb-3">
-                  <i class="bi bi-check-circle me-2"></i>${escapeHtml(data.message || "Fragebogen beendet.")}
-                </div>
-
-                <div class="d-flex justify-content-end gap-2">
-                  <button class="btn btn-outline-secondary rounded-3 download-history-pdf-btn">
-                    <i class="bi bi-filetype-pdf me-1"></i>Verlauf als PDF herunterladen
-                  </button>
-
-                  <button class="btn btn-outline-primary rounded-3 contact-us-btn">
-                    <i class="bi bi-envelope me-1"></i>Contact us
-                  </button>
-                </div>
-              </div>
-            </div>
-          `);
-        } else {
-          renderElement(data, flowIndex);
-          flowIndex += 1;
-        }
-      },
-      error: function(xhr) {
-        $('#frage-history').append('<div class="alert alert-danger">Fehler beim Laden des nächsten Elements.</div>');
-        console.error("Fehler beim Laden des nächsten Elements:", xhr);
-      }
-    });
-  });
-
-  $('#frage-history').on('click', '.run-llm-btn', function(e) {
-    e.preventDefault();
-
-    const $btn = $(this);
-    const idx = $btn.data('idx');
-    const promptId = $btn.data('prompt-id');
-
-    const userInput = $(`#prompt-input-${idx}`).val() || "";
-    const fileEl = $(`#file-input-${idx}`)[0];
-    const file = fileEl && fileEl.files ? fileEl.files[0] : null;
-
-    const $result = $(`#llm-result-${idx}`);
-    const spinner = `
-      <div class="d-flex align-items-center gap-2">
-        <div class="spinner-border" role="status" aria-label="Berechnung läuft"></div>
-        <span>Bitte warten – die Empfehlung wird berechnet…</span>
-      </div>
-    `;
-
-    $result.html(spinner).css('display', 'block');
-    $btn.prop('disabled', true).addClass('disabled');
-
-    const formData = new FormData();
-    formData.append('prompt_id', String(promptId));
-    formData.append('user_input', userInput);
-    if (file) formData.append('file', file);
-
-    fetch('/run_prompt', { method: 'POST', body: formData })
-      .then(r => r.json())
-      .then(data => {
-        let html;
-
-        if (data.result) {
-          html = `<div><strong>Antwort:</strong><br>${escapeHtml(data.result)}</div>`;
-        } else if (data.error) {
-          html = `Fehler: ${escapeHtml(data.error)}`;
-        } else {
-          html = "Keine Antwort erhalten.";
-        }
-
-        $result.html(html);
-      })
-      .catch(() => {
-        $result.html('Fehler beim Ausführen des Prompts.');
-      })
-      .finally(() => {
-        $btn.prop('disabled', false).removeClass('disabled');
-      });
-  });
-
-  $('#frage-history').on('click', '#restart-btn', function() {
-    $('#frage-history').empty();
-    flowIndex = 0;
-    loadInitialFrage();
-  });
-
-  $("#frage-history").on("click", ".contact-us-btn", function() {
-    contactUs();
-  });
-
-  function contactUs() {
-    fetch("/get_email_config", { cache: "no-store" })
-      .then(r => {
-        if (!r.ok) throw new Error("Konfiguration nicht gefunden.");
-        return r.json();
-      })
-      .then(config => {
-        const recipient = encodeURIComponent(config.email_recipient || "");
-        const subject = encodeURIComponent(config.email_subject || "");
-        const body = encodeURIComponent(config.email_body || "");
-        const mailtoLink = `mailto:${recipient}?subject=${subject}&body=${body}`;
-
-        window.location.href = mailtoLink;
-      })
-      .catch(err => {
-        console.error(err);
-        alert("Email-Konfiguration ist nicht gesetzt.");
-      });
   }
 
   function getSelectedAnswerLabel(selectEl) {
@@ -434,6 +350,137 @@
     doc.save(filename);
   }
 
+  function contactUs() {
+    fetch("/get_email_config", { cache: "no-store" })
+      .then(r => {
+        if (!r.ok) throw new Error("Konfiguration nicht gefunden.");
+        return r.json();
+      })
+      .then(config => {
+        const recipient = encodeURIComponent(config.email_recipient || "");
+        const subject = encodeURIComponent(config.email_subject || "");
+        const body = encodeURIComponent(config.email_body || "");
+        const mailtoLink = `mailto:${recipient}?subject=${subject}&body=${body}`;
+
+        window.location.href = mailtoLink;
+      })
+      .catch(err => {
+        console.error(err);
+        alert("Email-Konfiguration ist nicht gesetzt.");
+      });
+  }
+
+  $('#frage-history').on('change', '.antwort-dropdown', function() {
+    const antwort = $(this).val();
+    const currentElementId = $(this).data('id');
+    const parentDiv = $(this).closest('[data-flow-index]');
+    const idx = parseInt(parentDiv.attr('data-flow-index'), 10);
+
+    $('[data-flow-index]').filter(function() {
+      return parseInt($(this).attr('data-flow-index'), 10) > idx;
+    }).remove();
+
+    if (!antwort) return;
+
+    flowIndex = idx + 1;
+
+    $.ajax({
+      url: '/next_element',
+      type: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({
+        frage_id: currentElementId,
+        antwort: antwort
+      }),
+      success: function(data) {
+        if (data.done) {
+          $('#frage-history').append(`
+            <div class="card shadow rounded-4 border-0 mb-4" data-flow-index="${flowIndex}">
+              <div class="card-body p-4">
+                <div class="alert alert-success mb-3">
+                  <i class="bi bi-check-circle me-2"></i>${escapeHtml(data.message || "Fragebogen beendet.")}
+                </div>
+
+                <div class="d-flex justify-content-end gap-2">
+                  <button class="btn btn-outline-secondary rounded-3 download-history-pdf-btn">
+                    <i class="bi bi-filetype-pdf me-1"></i>Verlauf als PDF herunterladen
+                  </button>
+
+                  <button class="btn btn-outline-primary rounded-3 contact-us-btn">
+                    <i class="bi bi-envelope me-1"></i>Contact us
+                  </button>
+                </div>
+              </div>
+            </div>
+          `);
+        } else {
+          renderElement(data, flowIndex);
+          flowIndex += 1;
+        }
+      },
+      error: function(xhr) {
+        $('#frage-history').append('<div class="alert alert-danger">Fehler beim Laden des nächsten Elements.</div>');
+        console.error("Fehler beim Laden des nächsten Elements:", xhr);
+      }
+    });
+  });
+
+  $('#frage-history').on('click', '.run-llm-btn', function(e) {
+    e.preventDefault();
+
+    const $btn = $(this);
+    const idx = $btn.data('idx');
+    const promptId = $btn.data('prompt-id');
+
+    const userInput = $(`#prompt-input-${idx}`).val() || "";
+    const fileEl = $(`#file-input-${idx}`)[0];
+    const file = fileEl && fileEl.files ? fileEl.files[0] : null;
+
+    const $result = $(`#llm-result-${idx}`);
+    const spinner = `
+      <div class="d-flex align-items-center gap-2">
+        <div class="spinner-border" role="status" aria-label="Berechnung läuft"></div>
+        <span>Bitte warten – die Empfehlung wird berechnet…</span>
+      </div>
+    `;
+
+    $result.html(spinner).css('display', 'block');
+    $btn.prop('disabled', true).addClass('disabled');
+
+    const formData = new FormData();
+    formData.append('prompt_id', String(promptId));
+    formData.append('user_input', userInput);
+    if (file) formData.append('file', file);
+
+    fetch('/run_prompt', { method: 'POST', body: formData })
+      .then(r => r.json())
+      .then(data => {
+        let html;
+
+        if (data.result) {
+          html = `<div><strong>Antwort:</strong><br>${escapeHtml(data.result)}</div>`;
+        } else if (data.error) {
+          html = `Fehler: ${escapeHtml(data.error)}`;
+        } else {
+          html = "Keine Antwort erhalten.";
+        }
+
+        $result.html(html);
+      })
+      .catch(() => {
+        $result.html('Fehler beim Ausführen des Prompts.');
+      })
+      .finally(() => {
+        $btn.prop('disabled', false).removeClass('disabled');
+      });
+  });
+
+  $('#frage-history').on('click', '#restart-btn', function() {
+    $('#frage-history').empty();
+    flowIndex = 0;
+    loadInitialFrage();
+  });
+
   $("#frage-history").on("click", ".download-history-pdf-btn", async function() {
     const $btn = $(this);
     const oldHtml = $btn.html();
@@ -450,6 +497,63 @@
       $btn.prop("disabled", false).removeClass("disabled").html(oldHtml);
     }
   });
+
+  $("#frage-history").on("click", ".send-mail-btn", function() {
+    contactUs();
+  });
+
+  $("#frage-history").on("click", ".contact-us-btn", function() {
+    const $card = $(this).closest(".card-body");
+    const $formArea = $card.find(".contact-form-area");
+
+    $(".contact-form-area").not($formArea).slideUp(200);
+    $formArea.slideToggle(200);
+  });
+
+  $("#frage-history").on("click", ".contact-send-btn", function() {
+
+  const $formArea = $(this).closest(".contact-form-area");
+
+  const name = $formArea.find("[name='contact_name']").val().trim();
+  const company = $formArea.find("[name='contact_company']").val().trim();
+  const position = $formArea.find("[name='contact_position']").val().trim();
+  const phone = $formArea.find("[name='contact_phone']").val().trim();
+  const email = $formArea.find("[name='contact_email']").val().trim();
+  const message = $formArea.find("[name='contact_message']").val().trim();
+
+  if (!name || !company || !email) {
+    alert("Bitte füllen Sie die Pflichtfelder aus: Mein Name, Mein Unternehmen und Meine E-Mail-Adresse.");
+    return;
+  }
+
+  fetch("/send_contact_email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      name,
+      company,
+      position,
+      phone,
+      email,
+      message
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      alert("Anfrage wurde versendet.");
+    } else {
+      alert(data.message || "Fehler beim Versand.");
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    alert("Technischer Fehler.");
+  });
+
+});
 
   $(document).ready(function() {
     loadInitialFrage();

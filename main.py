@@ -2,6 +2,10 @@ import os
 import threading
 import webbrowser
 
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
 from flask import Flask, Response, render_template, request, jsonify
 from graphviz import Digraph
 import requests
@@ -805,7 +809,7 @@ def save_email_config():
         return jsonify({"message": "E-Mail-Konfiguration erfolgreich gespeichert!"})
     except Exception as e:
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
-# </editor-fold>
+
 
 @app.route("/llm_konfigurieren")
 def llm_konfigurieren():
@@ -872,6 +876,50 @@ def save_llm_config():
 
     except Exception as e:
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
+
+def send_email(recipient: str, subject: str, body: str):
+    smtp_host = "smtp.example.com"
+    smtp_port = 587
+
+    smtp_user = "user@example.com"
+    smtp_password = "secret"
+
+    msg = MIMEMultipart()
+    msg["From"] = smtp_user
+    msg["To"] = recipient
+    msg["Subject"] = subject
+
+    msg.attach(MIMEText(body, "plain", "utf-8"))
+
+    with smtplib.SMTP(smtp_host, smtp_port) as server:
+        server.starttls()
+        server.login(smtp_user, smtp_password)
+        server.send_message(msg)
+
+@app.route("/send_contact_email", methods=["POST"])
+def send_contact_email():
+    try:
+        data = request.get_json() or {}
+
+        name = data.get("name", "")
+        company = data.get("company", "")
+        position = data.get("position", "")
+        phone = data.get("phone", "")
+        email = data.get("email", "")
+        message = data.get("message", "")
+
+        return jsonify({
+            "success": True
+        })
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+
+# </editor-fold>
 
 
 # ===========================================================================================================
