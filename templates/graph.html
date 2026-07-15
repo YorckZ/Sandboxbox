@@ -24,7 +24,6 @@
 </div>
 
 <script>
-  // Force reload without cache when clicking refresh
   document.getElementById('refresh-graph').addEventListener('click', () => {
     const obj = document.getElementById('graph-object');
     obj.data = '/graph.svg?ts=' + Date.now();

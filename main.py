@@ -57,7 +57,6 @@ def dashboard():
 @app.route("/counts")
 def counts():
     try:
-        # Use lightweight count queries; avoids fetching full rows
         conn, cursor = db.open_connection()
         cursor.execute("SELECT COUNT(*) FROM tbl_fragen");   n1 = cursor.fetchone()[0] or 0
         cursor.execute("SELECT COUNT(*) FROM tbl_antworten"); n2 = cursor.fetchone()[0] or 0
@@ -577,7 +576,6 @@ def _extract_pdf_text(file_storage) -> str:
         # PyPDF2 not installed
         return ""
     try:
-        # PyPDF2 can read from a file-like; use the stream directly
         reader = PdfReader(file_storage.stream)
         parts = []
         for page in reader.pages:
@@ -718,27 +716,6 @@ def run_prompt():
             parts.append("(Optional:) Weiterhin hat er folgende Dokumenteninhalte bereitgestellt:\n" + combined_doc_text)
         parts.extend(["", instr_f])
         full_prompt = "\n".join(parts).strip()
-
-        # # Call local Ollama
-        # model_name = os.getenv("OLLAMA_MODEL", "llama3.1")  # set OLLAMA_MODEL in your env if you prefer
-        # try:
-        #     r = requests.post(
-        #         "http://localhost:11434/api/generate",
-        #         json={
-        #             "model": model_name,
-        #             "prompt": full_prompt,
-        #             "stream": False
-        #         },
-        #         timeout=120
-        #     )
-        #     r.raise_for_status()
-        #     data = r.json()
-        #     answer = (data.get("response") or "").strip()
-        #     if not answer:
-        #         return jsonify({"error": "Leere Antwort vom LLM."}), 502
-        #     return jsonify({"result": answer})
-        # except requests.RequestException as re:
-        #     return jsonify({"error": f"Ollama nicht erreichbar oder Fehler: {re}"}), 502
 
         try:
             answer = _run_configured_llm(full_prompt)
@@ -953,31 +930,9 @@ def save_smtp_config():
     except Exception as e:
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
 
-# @app.route("/send_contact_email", methods=["POST"])
-# def send_contact_email():
-#     try:
-#         data = request.get_json() or {}
-#
-#         name = data.get("name", "")
-#         company = data.get("company", "")
-#         position = data.get("position", "")
-#         phone = data.get("phone", "")
-#         email = data.get("email", "")
-#         message = data.get("message", "")
-#
-#         return jsonify({
-#             "success": True
-#         })
-#
-#     except Exception as e:
-#         return jsonify({
-#             "success": False,
-#             "message": str(e)
-#         }), 500
 
 def _format_contact_request_email(data: dict, contact_id: int) -> str:
     return f"""
-Neue Kontaktanfrage #{contact_id}
 
 Name des Unternehmens / der Behörde / der Einrichtung:
 {data.get("organisation_name", "")}

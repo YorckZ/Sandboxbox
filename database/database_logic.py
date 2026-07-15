@@ -34,122 +34,112 @@ def init_db():
 
     # tbl_fragen
     cursor.execute("""
-                CREATE TABLE IF NOT EXISTS tbl_fragen (
-                ID INTEGER NOT NULL PRIMARY KEY, -- Primary Key
-                Bez Text NOT NULL, -- Kurzbezeichnung der Frage
-                Text TEXT NOT NULL, -- Fragetext
-                Bem Text, -- Ergänzungstext, Hilfetext
-                Ja INTEGER, -- Verknüpfung zu nächsten Element; Foreign Key
-                Nein INTEGER, -- Verknüpfung zu nächsten Element; Foreign Key
-                Unsicher INTEGER, -- Verknüpfung zu nächsten Element; Foreign Key
-                Initial BOOLEAN -- Ist dies die Startfrage
-                )
-            """)
+        CREATE TABLE IF NOT EXISTS tbl_fragen (
+        ID INTEGER NOT NULL PRIMARY KEY, -- Primary Key
+        Bez Text NOT NULL, -- Kurzbezeichnung der Frage
+        Text TEXT NOT NULL, -- Fragetext
+        Bem Text, -- Ergänzungstext, Hilfetext
+        Ja INTEGER, -- Verknüpfung zu nächsten Element; Foreign Key
+        Nein INTEGER, -- Verknüpfung zu nächsten Element; Foreign Key
+        Unsicher INTEGER, -- Verknüpfung zu nächsten Element; Foreign Key
+        Initial BOOLEAN -- Ist dies die Startfrage
+        )
+    """)
 
     # tbl_antworten
     cursor.execute("""
-                CREATE TABLE IF NOT EXISTS tbl_antworten (
-                ID INTEGER NOT NULL PRIMARY KEY, -- Primary Key
-                Bez TEXT NOT NULL,  -- Kurzbezeichnung der Antworten
-                Text TEXT NOT NULL) -- Text der Antwort
-            """)
+        CREATE TABLE IF NOT EXISTS tbl_antworten (
+        ID INTEGER NOT NULL PRIMARY KEY, -- Primary Key
+        Bez TEXT NOT NULL,  -- Kurzbezeichnung der Antworten
+        Text TEXT NOT NULL) -- Text der Antwort
+    """)
 
     # tbl_prompts
-    # cursor.execute("""
-    #             CREATE TABLE IF NOT EXISTS tbl_prompts (
-    #             ID INTEGER NOT NULL PRIMARY KEY, -- Primary Key
-    #             Bez TEXT NOT NULL, -- Kurzbezeichnung der Prompt
-    #             System TEXT NOT NULL, -- Text des Prompts
-    #             DSGVO TEXT, -- Text der DSGVO
-    #             Task TEXT -- Aufgabe des LLMs
-    #             )
-    #         """)
-
     cursor.execute("""
-                CREATE TABLE IF NOT EXISTS tbl_prompts (
-                ID INTEGER NOT NULL PRIMARY KEY, -- Primary Key
-                Bez TEXT NOT NULL, -- Kurzbezeichnung des Prompts
-                Frage TEXT, -- Referenz/Frage (String)
-                DSGVO TEXT -- DSGVO-Artikel (Wortlaut)
-                )
-            """)
+        CREATE TABLE IF NOT EXISTS tbl_prompts (
+        ID INTEGER NOT NULL PRIMARY KEY, -- Primary Key
+        Bez TEXT NOT NULL, -- Kurzbezeichnung des Prompts
+        Frage TEXT, -- Referenz/Frage (String)
+        DSGVO TEXT -- DSGVO-Artikel (Wortlaut)
+        )
+    """)
 
     # tbl_config (global configuration – single row expected)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS tbl_config (
-            ID INTEGER NOT NULL PRIMARY KEY,
-            email_recipient TEXT,
-            email_subject TEXT,
-            email_body TEXT
+        ID INTEGER NOT NULL PRIMARY KEY,
+        email_recipient TEXT,
+        email_subject TEXT,
+        email_body TEXT
         )
     """)
 
     # tbl_llm_config (global LLM configuration – single row expected)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS tbl_llm_config (
-            ID INTEGER NOT NULL PRIMARY KEY,
-            provider TEXT NOT NULL DEFAULT 'ollama',
+        ID INTEGER NOT NULL PRIMARY KEY,
+        provider TEXT NOT NULL DEFAULT 'ollama',
 
-            ollama_base_url TEXT DEFAULT 'http://localhost:11434',
-            ollama_model TEXT DEFAULT 'llama3.1',
+        ollama_base_url TEXT DEFAULT 'http://localhost:11434',
+        ollama_model TEXT DEFAULT 'llama3.1',
 
-            openai_api_key TEXT,
-            openai_model TEXT DEFAULT 'gpt-4.1-mini',
-            openai_base_url TEXT,
+        openai_api_key TEXT,
+        openai_model TEXT DEFAULT 'gpt-4.1-mini',
+        openai_base_url TEXT,
 
-            temperature REAL DEFAULT 0.2,
-            max_output_tokens INTEGER DEFAULT 1000
+        temperature REAL DEFAULT 0.2,
+        max_output_tokens INTEGER DEFAULT 1000
         )
     """)
 
     cursor.execute("""
-                   CREATE TABLE IF NOT EXISTS tbl_contact_requests(
-                       ID INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-                       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       CREATE TABLE IF NOT EXISTS tbl_contact_requests(
+       ID INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-                       organisation_name TEXT NOT NULL,
-                       organisation_location TEXT,
-                       contact_person TEXT NOT NULL,
-                       phone_extension TEXT,
-                       email TEXT NOT NULL,
+       organisation_name TEXT NOT NULL,
+       organisation_location TEXT,
+       contact_person TEXT NOT NULL,
+       phone_extension TEXT,
+       email TEXT NOT NULL,
 
-                       product_description TEXT,
-                       product_purpose TEXT,
-                       development_stage TEXT,
-                       data_categories_processing_output TEXT,
-                       specific_questions_problems TEXT,
-                       participation_timeline TEXT
-                        )
-                   """)
-
-    cursor.execute("""
-                   CREATE TABLE IF NOT EXISTS tbl_contact_notification_config (
-                       ID INTEGER NOT NULL PRIMARY KEY,
-                       recipient TEXT NOT NULL,
-                       subject TEXT NOT NULL,
-                       body TEXT
-                   )
-                   """)
+       product_description TEXT,
+       product_purpose TEXT,
+       development_stage TEXT,
+       data_categories_processing_output TEXT,
+       specific_questions_problems TEXT,
+       participation_timeline TEXT
+        )
+   """)
 
     cursor.execute("""
-                   CREATE TABLE IF NOT EXISTS tbl_contact_company_email_config (
-                       ID INTEGER NOT NULL PRIMARY KEY,
-                       subject TEXT NOT NULL,
-                       body TEXT
-                   )
-                   """)
+       CREATE TABLE IF NOT EXISTS tbl_contact_notification_config (
+       ID INTEGER NOT NULL PRIMARY KEY,
+       recipient TEXT NOT NULL,
+       subject TEXT NOT NULL,
+       body TEXT
+       )
+   """)
 
     cursor.execute("""
-                   CREATE TABLE IF NOT EXISTS tbl_smtp_config (
-                       ID INTEGER NOT NULL PRIMARY KEY,
-                       smtp_host TEXT NOT NULL,
-                       smtp_port INTEGER NOT NULL DEFAULT 587,
-                       smtp_user TEXT NOT NULL,
-                       smtp_password TEXT NOT NULL,
-                       smtp_from TEXT NOT NULL,
-                       use_tls BOOLEAN NOT NULL DEFAULT 1
-                   )
-                   """)
+       CREATE TABLE IF NOT EXISTS tbl_contact_company_email_config (
+       ID INTEGER NOT NULL PRIMARY KEY,
+       subject TEXT NOT NULL,
+       body TEXT
+       )
+   """)
+
+    cursor.execute("""
+       CREATE TABLE IF NOT EXISTS tbl_smtp_config (
+       ID INTEGER NOT NULL PRIMARY KEY,
+       smtp_host TEXT NOT NULL,
+       smtp_port INTEGER NOT NULL DEFAULT 587,
+       smtp_user TEXT NOT NULL,
+       smtp_password TEXT NOT NULL,
+       smtp_from TEXT NOT NULL,
+       use_tls BOOLEAN NOT NULL DEFAULT 1
+       )
+   """)
 
     conn.commit()
     close_connection(conn)
@@ -170,9 +160,6 @@ def get_next_id() -> int:
         return -1
 
 def get_element_by_id(element_id: int):
-    """
-    Looks up the element by its ID and returns a unified dict with its type and content.
-    """
     conn, cursor = open_connection()
     cursor.execute("SELECT table_id, foreign_id FROM tbl_elemente WHERE ID = ?", (element_id,))
     row = cursor.fetchone()
@@ -207,24 +194,10 @@ def get_element_by_id(element_id: int):
                 "Bez": antwort["Bez"],
                 "Text": antwort["Text"],
             }
-    # elif table_id == 3:  # Prompt
-    #     prompt = get_prompt_by_id(foreign_id)
-    #     if prompt:
-    #         return {
-    #             "type": "Prompt",
-    #             "ID": element_id,
-    #             "PromptID": foreign_id,
-    #             "Bez": prompt["Bez"],
-    #             "System": prompt["System"],
-    #             "DSGVO": prompt.get("DSGVO", ""),
-    #             "Task": prompt.get("Task", ""),
-    #         }
 
-    # TODO: Simplify
     elif table_id == 3:  # Prompt
         prompt = get_prompt_by_id(foreign_id)
         if prompt:
-            # Include a 'System' field for backward-compatibility with the frontend display
             system_text = ""
             if prompt.get("Frage"):
                 system_text += str(prompt["Frage"]).strip()
@@ -240,15 +213,12 @@ def get_element_by_id(element_id: int):
                 "Bez": prompt["Bez"],
                 "Frage": prompt.get("Frage", ""),
                 "DSGVO": prompt.get("DSGVO", ""),
-                "System": system_text,  # for current new.html which reads element.System
+                "System": system_text,
             }
 
     return None
 
 def get_all_bez_with_element_ids():
-    """
-    Return all elements as {ID=<tbl_elemente.ID>, Bez, type} sorted by Bez.
-    """
     conn, cursor = open_connection()
     cursor.execute("""
         SELECT * FROM (
@@ -271,7 +241,6 @@ def get_all_bez_with_element_ids():
     """)
     rows = cursor.fetchall()
     close_connection(conn)
-    # rows: (ElementID, type, Bez)
     return [{"ID": r[0], "type": r[1], "Bez": r[2]} for r in rows]
 
 # </editor-fold>
@@ -296,10 +265,6 @@ def delete_element(e_id):
     close_connection(conn)
 
 def save_all_tables_to_json(json_path="database_export.json"):
-    """
-    Saves all rows from all tables into a single JSON file.
-    The JSON file will be a dict where each key is the table name and the value is a list of dicts (rows).
-    """
     try:
         conn, cursor = open_connection()
 
@@ -327,10 +292,6 @@ def save_all_tables_to_json(json_path="database_export.json"):
         print(f"Error exporting tables to JSON: {e}")
 
 def import_all_tables_from_json(json_path="database_export.json"):
-    """
-    Imports all rows from a JSON file into their corresponding tables.
-    WARNING: This will DELETE existing rows in those tables!
-    """
     try:
         with open(json_path, "r", encoding="utf-8") as f:
             import_data = json.load(f)
@@ -422,7 +383,6 @@ def get_initial_frage():
         return None
 
     frage_id = row[0]
-    # Find the element with table_id=1 (Frage), foreign_id=frage_id
     conn, cursor = open_connection()
     cursor.execute("SELECT ID FROM tbl_elemente WHERE table_id = 1 AND foreign_id = ?", (frage_id,))
     row = cursor.fetchone()
