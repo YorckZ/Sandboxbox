@@ -641,16 +641,9 @@ def get_email_config():
     finally:
         close_connection(conn)
 
-def set_llm_config(
-    provider: str,
-    ollama_base_url: str,
-    ollama_model: str,
-    openai_api_key: str,
-    openai_model: str,
-    openai_base_url: str,
-    temperature: float,
-    max_output_tokens: int
-):
+def set_llm_config(provider: str, ollama_base_url: str, ollama_model: str, openai_api_key: str, openai_model: str,
+                   openai_base_url: str, temperature: float, max_output_tokens: int):
+
     """
     Stores LLM configuration in tbl_llm_config.
     Always uses ID = 1.
@@ -716,7 +709,6 @@ def set_llm_config(
     finally:
         close_connection(conn)
 
-
 def get_llm_config():
     """
     Returns LLM configuration from tbl_llm_config.
@@ -763,7 +755,6 @@ def get_llm_config():
         }
     finally:
         close_connection(conn)
-
 
 def get_llm_config_safe():
     """
@@ -815,7 +806,6 @@ def create_contact_request(data: dict) -> int:
     finally:
         close_connection(conn)
 
-
 def get_all_contact_requests():
     conn, cursor = open_connection()
     try:
@@ -851,7 +841,6 @@ def get_all_contact_requests():
     finally:
         close_connection(conn)
 
-
 def set_contact_notification_config(recipient: str, subject: str, body: str):
     conn, cursor = open_connection()
     try:
@@ -866,7 +855,6 @@ def set_contact_notification_config(recipient: str, subject: str, body: str):
         conn.commit()
     finally:
         close_connection(conn)
-
 
 def get_contact_notification_config():
     conn, cursor = open_connection()
@@ -883,7 +871,6 @@ def get_contact_notification_config():
     finally:
         close_connection(conn)
 
-
 def set_contact_company_email_config(subject: str, body: str):
     conn, cursor = open_connection()
     try:
@@ -897,7 +884,6 @@ def set_contact_company_email_config(subject: str, body: str):
         conn.commit()
     finally:
         close_connection(conn)
-
 
 def get_contact_company_email_config():
     conn, cursor = open_connection()
@@ -913,7 +899,6 @@ def get_contact_company_email_config():
         return {"subject": row[0] or "", "body": row[1] or ""}
     finally:
         close_connection(conn)
-
 
 def set_smtp_config(
     smtp_host: str,
@@ -971,7 +956,6 @@ def set_smtp_config(
     finally:
         close_connection(conn)
 
-
 def get_smtp_config():
     conn, cursor = open_connection()
     try:
@@ -996,7 +980,6 @@ def get_smtp_config():
     finally:
         close_connection(conn)
 
-
 def get_smtp_config_safe():
     cfg = get_smtp_config()
     if not cfg:
@@ -1014,7 +997,6 @@ def get_smtp_config_safe():
     cfg["smtp_password_set"] = bool(password)
     cfg["smtp_password"] = ""
     return cfg
-
 
 # ===========================================================================================================
 
