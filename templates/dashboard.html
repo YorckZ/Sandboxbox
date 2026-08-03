@@ -65,17 +65,46 @@
           </div>
         </div>
 
+<!--        &lt;!&ndash; Configuration Card &ndash;&gt;-->
+<!--        <div class="card shadow rounded-4 border-0 mt-4">-->
+<!--          <div class="card-body">-->
+<!--            <div class="d-grid gap-3">-->
+<!--              <a href="/email_konfigurieren" class="btn btn-primary rounded-3 shadow-sm">-->
+<!--                Email konfigurieren-->
+<!--              </a>-->
+<!--              <a href="/llm_konfigurieren" class="btn btn-primary rounded-3 shadow-sm">-->
+<!--                LLM konfigurieren-->
+<!--              </a>-->
+<!--            </div>-->
+<!--          </div>-->
+<!--        </div>-->
+
         <!-- Configuration Card -->
         <div class="card shadow rounded-4 border-0 mt-4">
           <div class="card-body">
             <div class="d-grid gap-3">
-              <a href="/email_konfigurieren" class="btn btn-primary rounded-3 shadow-sm">
-                Email konfigurieren
+              <a href="/email_konfigurieren"
+                 class="btn btn-primary rounded-3 shadow-sm">
+                Email konfigurieren (alt)
               </a>
-<!--              <a href="#" class="btn btn-primary rounded-3 shadow-sm disabled" aria-disabled="true">-->
-<!--                LLM konfigurieren-->
-<!--              </a>-->
-              <a href="/llm_konfigurieren" class="btn btn-primary rounded-3 shadow-sm">
+
+              <div class="row g-3">
+                <div class="col-6">
+                  <a href="/smtp_konfigurieren"
+                     class="btn btn-primary rounded-3 shadow-sm w-100">
+                    E-Mail-Server
+                  </a>
+                </div>
+                <div class="col-6">
+                  <a href="/kontakt_email_konfigurieren"
+                     class="btn btn-primary rounded-3 shadow-sm w-100">
+                    E-Mail-Texte
+                  </a>
+                </div>
+              </div>
+
+              <a href="/llm_konfigurieren"
+                 class="btn btn-primary rounded-3 shadow-sm">
                 LLM konfigurieren
               </a>
             </div>

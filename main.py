@@ -40,10 +40,10 @@ def home():
     # Main Page
     return render_template('index.html')
 
-@app.route('/sat')
-def sat():
+# @app.route('/sat')
+# def sat():
     # Self-Assessment Tool Page (old style)
-    return render_template('dynamic.html')
+    # return render_template('dynamic.html')
 
 @app.route('/new')
 def new():
@@ -931,7 +931,8 @@ def save_smtp_config():
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
 
 
-def _format_contact_request_email(data: dict, contact_id: int) -> str:
+def _format_contact_request_email(data: dict) -> str:
+# def _format_contact_request_email(data: dict, contact_id: int) -> str:
     return f"""
 
 Name des Unternehmens / der Behörde / der Einrichtung:
@@ -1000,7 +1001,8 @@ def send_contact_email():
             }), 400
 
         notification_body = (notification_cfg.get("body") or "").strip()
-        notification_body += "\n\n" + _format_contact_request_email(data, contact_id)
+        # notification_body += "\n\n" + _format_contact_request_email(data, contact_id)
+        notification_body += "\n\n" + _format_contact_request_email(data)
 
         send_email(
             recipient=notification_cfg["recipient"],
@@ -1088,7 +1090,8 @@ def save_contact_email_config():
 
 def open_browser():
     # required to automatically start the browser once the webserver is running
-    webbrowser.open("http://127.0.0.1:5000")
+    # webbrowser.open("http://127.0.0.1:5000")
+    webbrowser.open("http://127.0.0.1:5000/dashboard")
 
 
 if __name__ == '__main__':
