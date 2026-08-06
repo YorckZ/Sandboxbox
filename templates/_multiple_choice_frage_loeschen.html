@@ -1,0 +1,45 @@
+{% extends 'index.html' %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+  <div class="card shadow rounded-4 border-0">
+    <div class="card-body p-4">
+      <h2 class="mb-4 text-danger"><i class="bi bi-trash3 me-2"></i>Multiple-Choice-Frage löschen</h2>
+      <div class="mb-4">
+        <label for="frageSelect" class="form-label">Multiple-Choice-Frage auswählen</label>
+        <select id="frageSelect" class="form-select rounded-3 w-auto d-inline-block">
+          <option value="">-- Bitte wählen --</option>
+        </select>
+      </div>
+      <button id="deleteBtn" type="button" class="btn btn-danger px-4 rounded-3 shadow-sm" disabled>
+        <i class="bi bi-trash me-1"></i>Löschen
+      </button>
+      <p id="statusMessage" class="mt-3 mb-0" role="status"></p>
+    </div>
+  </div>
+</div>
+<script>
+  document.addEventListener("DOMContentLoaded", async () => {
+    const select = document.getElementById("frageSelect");
+    const button = document.getElementById("deleteBtn");
+    const status = document.getElementById("statusMessage");
+    try {
+      const response = await fetch("/all_multiple_choice_fragen");
+      const fragen = await response.json();
+      fragen.forEach(frage => select.add(new Option(`${frage.Bez}: ${frage.Text}`, frage.ID)));
+    } catch (_) {
+      status.textContent = "Die Multiple-Choice-Fragen konnten nicht geladen werden.";
+      status.className = "mt-3 mb-0 text-danger";
+    }
+    select.addEventListener("change", () => button.disabled = !select.value);
+    button.addEventListener("click", async () => {
+      if (!select.value || !confirm(`Möchten Sie „${select.options[select.selectedIndex].text}“ wirklich löschen? Alle zugehörigen Items werden ebenfalls gelöscht.`)) return;
+      const response = await fetch(`/delete_multiple_choice_frage/${encodeURIComponent(select.value)}`, {method: "DELETE"});
+      const data = await response.json();
+      status.textContent = data.message;
+      status.className = response.ok ? "mt-3 mb-0 text-success" : "mt-3 mb-0 text-danger";
+      if (response.ok) { select.remove(select.selectedIndex); button.disabled = true; }
+    });
+  });
+</script>
+{% endblock %}

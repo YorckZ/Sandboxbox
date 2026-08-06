@@ -1,0 +1,178 @@
+{% extends "index.html" %}
+
+{% block content %}
+
+<div class="container mt-5 mb-5">
+    <div class="card shadow rounded-4 border-0">
+        <div class="card-body p-4">
+            <h2 class="mb-4 text-primary">
+                <i class="bi bi-list-check me-2"></i>Neues Multiple-Choice-Item anlegen
+            </h2>
+
+            <form id="multipleChoiceItemForm" autocomplete="off">
+                <div class="mb-3">
+                    <label for="frage_id" class="form-label">
+                        Multiple-Choice-Frage
+                        <i class="bi bi-info-circle-fill ms-2 text-info"
+                           data-bs-toggle="tooltip"
+                           title="Wählen Sie die Multiple-Choice-Frage aus, zu der dieses Item gehören soll."></i>
+                    </label>
+                    <select class="form-select rounded-3" id="frage_id" name="frage_id" required>
+                        <option value="">Fragen werden geladen...</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="text" class="form-label">
+                        Antwortmöglichkeit
+                        <i class="bi bi-info-circle-fill ms-2 text-info"
+                           data-bs-toggle="tooltip"
+                           title="Dieser Text wird als auswählbare Antwortmöglichkeit angezeigt."></i>
+                    </label>
+                    <textarea class="form-control rounded-3"
+                              id="text"
+                              name="text"
+                              rows="2"
+                              required
+                              placeholder="Geben Sie die Antwortmöglichkeit ein..."></textarea>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <label for="position" class="form-label">
+                            Position
+                            <i class="bi bi-info-circle-fill ms-2 text-info"
+                               data-bs-toggle="tooltip"
+                               title="Optionale Position innerhalb der Frage. Leer lassen, um das Item am Ende einzufügen."></i>
+                        </label>
+                        <input type="number"
+                               class="form-control rounded-3"
+                               id="position"
+                               name="position"
+                               min="1"
+                               step="1"
+                               placeholder="Am Ende">
+                    </div>
+                </div>
+
+                <button id="submitButton"
+                        type="submit"
+                        class="btn btn-primary px-4 rounded-3 shadow-sm"
+                        disabled>
+                    <i class="bi bi-save me-1"></i>Speichern
+                </button>
+            </form>
+
+            <p id="statusMessage" class="mt-3 mb-0" role="status" aria-live="polite"></p>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (element) {
+            new bootstrap.Tooltip(element);
+        });
+
+        const form = document.getElementById("multipleChoiceItemForm");
+        const frageSelect = document.getElementById("frage_id");
+        const submitButton = document.getElementById("submitButton");
+        const statusMessage = document.getElementById("statusMessage");
+
+        function showStatus(message, successful) {
+            statusMessage.textContent = message;
+            statusMessage.className = successful
+                ? "mt-3 mb-0 text-success"
+                : "mt-3 mb-0 text-danger";
+        }
+
+        function addOption(select, value, label) {
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = label;
+            select.appendChild(option);
+        }
+
+        async function loadMultipleChoiceFragen() {
+            try {
+                const response = await fetch("/all_multiple_choice_fragen");
+                if (!response.ok) {
+                    throw new Error("Die Multiple-Choice-Fragen konnten nicht geladen werden.");
+                }
+
+                const data = await response.json();
+                const fragen = Array.isArray(data) ? data : (data.fragen || []);
+
+                frageSelect.replaceChildren();
+                addOption(frageSelect, "", "-- Multiple-Choice-Frage wählen --");
+
+                fragen.forEach(function (frage) {
+                    const label = frage.Text
+                        ? `${frage.Bez}: ${frage.Text}`
+                        : frage.Bez;
+                    addOption(frageSelect, frage.ID, label);
+                });
+
+                if (fragen.length === 0) {
+                    frageSelect.disabled = true;
+                    submitButton.disabled = true;
+                    showStatus("Legen Sie zuerst eine Multiple-Choice-Frage an.", false);
+                    return;
+                }
+
+                frageSelect.disabled = false;
+                submitButton.disabled = false;
+            } catch (error) {
+                console.error("Fehler beim Laden der Fragen:", error);
+                frageSelect.replaceChildren();
+                addOption(frageSelect, "", "Fragen konnten nicht geladen werden");
+                frageSelect.disabled = true;
+                submitButton.disabled = true;
+                showStatus(error.message, false);
+            }
+        }
+
+        form.addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            const positionValue = document.getElementById("position").value;
+            const formData = {
+                frage_id: Number(frageSelect.value),
+                text: document.getElementById("text").value.trim(),
+                position: positionValue ? Number(positionValue) : null
+            };
+
+            submitButton.disabled = true;
+            statusMessage.textContent = "";
+
+            try {
+                const response = await fetch("/save_multiple_choice_item", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(formData)
+                });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || "Das Item konnte nicht gespeichert werden.");
+                }
+
+                showStatus(data.message || "Multiple-Choice-Item wurde gespeichert.", true);
+
+                // Keep the selected parent question for quickly adding more items.
+                document.getElementById("text").value = "";
+                document.getElementById("position").value = "";
+                document.getElementById("text").focus();
+            } catch (error) {
+                console.error("Fehler beim Speichern:", error);
+                showStatus(error.message || "Beim Speichern ist ein Fehler aufgetreten.", false);
+            } finally {
+                submitButton.disabled = frageSelect.disabled;
+            }
+        });
+
+        loadMultipleChoiceFragen();
+    });
+</script>
+
+{% endblock %}

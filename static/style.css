@@ -242,3 +242,44 @@ a:hover {
     border-color: #a00e7d !important;
     box-shadow: 0 0 0 0.25rem rgba(160, 14, 125, 0.25) !important;
 }
+
+/* Dashboard */
+.dash-split {
+    min-height: 70vh;
+}
+
+.dash-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    column-gap: 16px;
+    row-gap: 0;
+}
+
+.dash-grid .btn {
+    width: 100%;
+}
+
+.dash-grid-two {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.grid-spacer {
+    grid-column: 1 / -1;
+    height: 48px;
+}
+
+.stats-pre {
+    white-space: pre-line;
+    margin: 0;
+}
+
+@media (max-width: 575.98px) {
+    .dash-grid,
+    .dash-grid-two {
+        grid-template-columns: 1fr;
+        row-gap: 12px;
+    }
+}

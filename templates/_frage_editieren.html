@@ -156,10 +156,10 @@
             .then(list => {
                 allBezList = list; // [{Bez, type, ID}]
                 // Fill with filters:
-                populateSelectFiltered("ja", ["Frage", "Antwort"]);
-                populateSelectFiltered("nein", ["Frage", "Antwort"]);
+                populateSelectFiltered("ja", ["Frage", "Antwort", "MultipleChoiceFrage"]);
+                populateSelectFiltered("nein", ["Frage", "Antwort", "MultipleChoiceFrage"]);
                 // populateSelectFiltered("unsicher", ["Prompt"]);
-                populateSelectFiltered("unsicher", ["Frage", "Prompt"]);
+                populateSelectFiltered("unsicher", ["Frage", "Prompt", "MultipleChoiceFrage"]);
                 allBezLoaded = true;
             })
             .catch(err => console.error("Fehler beim Laden der Bez-Liste:", err));

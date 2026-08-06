@@ -1,0 +1,141 @@
+{% extends 'index.html' %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+  <div class="card shadow rounded-4 border-0">
+    <div class="card-body p-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h2 class="mb-0 text-primary">
+          <i class="bi bi-list-check me-2"></i>Alle Multiple-Choice-Items
+        </h2>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-primary rounded-3" href="/anlegen_multiple_choice_item">
+            <i class="bi bi-plus-circle me-1"></i>Neu
+          </a>
+          <a class="btn btn-outline-primary rounded-3" href="/graph">
+            <i class="bi bi-diagram-3 me-1"></i>Graph
+          </a>
+        </div>
+      </div>
+
+      <div class="row g-2 mb-3">
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input id="filterInput" type="text" class="form-control"
+                   placeholder="Nach Frage oder Antwortmöglichkeit filtern …">
+          </div>
+        </div>
+        <div class="col-md-6 text-md-end">
+          <span class="text-muted">
+            <i class="bi bi-info-circle me-1"></i>
+            Die Bearbeitung der Items wird später ergänzt.
+          </span>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle" id="mcItemsTable">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 70px;">ID</th>
+              <th style="width: 180px;">Frage</th>
+              <th>Fragetext</th>
+              <th style="width: 90px;">Position</th>
+              <th>Antwortmöglichkeit</th>
+              <th class="text-center" style="width: 90px;">Edit</th>
+            </tr>
+          </thead>
+          <tbody id="mcItemsTbody"></tbody>
+        </table>
+      </div>
+
+      <p id="statusMessage" class="mt-3 text-muted mb-0" role="status" aria-live="polite"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const tbody = document.getElementById("mcItemsTbody");
+  const statusMessage = document.getElementById("statusMessage");
+  const filterInput = document.getElementById("filterInput");
+
+  let itemsCache = [];
+
+  function escapeHtml(value) {
+    return (value ?? "")
+      .toString()
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function renderRows(items) {
+    if (!items.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center text-muted py-4">
+            Keine Multiple-Choice-Items gefunden.
+          </td>
+        </tr>`;
+      return;
+    }
+
+    tbody.innerHTML = items.map(item => `
+      <tr>
+        <td class="text-muted">${escapeHtml(item.ID)}</td>
+        <td><span class="fw-semibold">${escapeHtml(item.FrageBez)}</span></td>
+        <td>${escapeHtml(item.FrageText)}</td>
+        <td>${escapeHtml(item.Position)}</td>
+        <td>${escapeHtml(item.Text)}</td>
+        <td class="text-center">
+          <button type="button" class="btn btn-sm btn-outline-primary rounded-3"
+                  title="Bearbeiten" aria-label="Item bearbeiten">
+            <i class="bi bi-pencil-square"></i>
+          </button>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  function applyFilter() {
+    const query = filterInput.value.trim().toLowerCase();
+    if (!query) {
+      renderRows(itemsCache);
+      return;
+    }
+
+    renderRows(itemsCache.filter(item =>
+      [item.FrageBez, item.FrageText, item.Text, item.Position]
+        .some(value => (value ?? "").toString().toLowerCase().includes(query))
+    ));
+  }
+
+  async function loadItems() {
+    statusMessage.textContent = "Lade Multiple-Choice-Items …";
+    try {
+      const response = await fetch("/all_multiple_choice_items");
+      if (!response.ok) {
+        throw new Error("Die Multiple-Choice-Items konnten nicht geladen werden.");
+      }
+
+      const data = await response.json();
+      itemsCache = Array.isArray(data) ? data : [];
+      statusMessage.textContent = `${itemsCache.length} Item(s) geladen.`;
+      renderRows(itemsCache);
+    } catch (error) {
+      console.error(error);
+      statusMessage.textContent = error.message;
+      renderRows([]);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    loadItems();
+    filterInput.addEventListener("input", applyFilter);
+  });
+</script>
+{% endblock %}

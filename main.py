@@ -1,4 +1,5 @@
 import os
+import sqlite3
 import threading
 import webbrowser
 
@@ -111,6 +112,48 @@ def next_element():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@app.route('/next_multiple_choice_element', methods=['POST'])
+def next_multiple_choice_element():
+    try:
+        data = request.get_json(silent=True) or {}
+        frage_id = _optional_positive_int(data.get('frage_id'), 'Frage-ID')
+        selected_item_ids = data.get('selected_item_ids') or []
+
+        if frage_id is None or not isinstance(selected_item_ids, list):
+            return jsonify({"error": "Ungültige Multiple-Choice-Auswahl."}), 400
+
+        selected_ids = {
+            _optional_positive_int(item_id, 'Item-ID')
+            for item_id in selected_item_ids
+        }
+        selected_ids.discard(None)
+        if not selected_ids:
+            return jsonify({"error": "Bitte wählen Sie mindestens eine Antwort aus."}), 400
+
+        items = db.get_multiple_choice_items(frage_id)
+        selected_items = [item for item in items if item["ID"] in selected_ids]
+        if len(selected_items) != len(selected_ids):
+            return jsonify({"error": "Ein ausgewähltes Item gehört nicht zu dieser Frage."}), 400
+
+        frage = db.get_multiple_choice_frage_by_id(frage_id, include_items=False)
+        ziel = frage.get("Ziel") if frage else None
+        if not ziel:
+            return jsonify({
+                "done": True,
+                "message": "Kein Nachfolger definiert. Fragebogen ist beendet."
+            })
+
+        next_e = db.get_element_by_id(ziel)
+        if not next_e:
+            return jsonify({"error": "Nachfolger nicht gefunden."}), 404
+        return jsonify(next_e)
+
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
 @app.route("/graph")
 def graph_page():
     # Simple page that embeds the SVG
@@ -125,8 +168,8 @@ def graph_svg():
     # make links open the whole page, not inside the <object>
     dot.attr('node', target="_top")
 
-    shape_map = {1: "circle", 2: "box", 3: "triangle"}
-    fill_map  = {1: "#E3F2FD", 2: "#E8F5E9", 3: "#FFF3E0"}
+    shape_map = {1: "circle", 2: "box", 3: "triangle", 4: "diamond"}
+    fill_map  = {1: "#E3F2FD", 2: "#E8F5E9", 3: "#FFF3E0", 4: "#EDE7F6"}
 
     BLUE   = "#1976D2"  # Initialfrage
     GREEN  = "#2E7D32"
@@ -140,9 +183,11 @@ def graph_svg():
             for tgt in (item["Ja"], item["Nein"], item["Unsicher"]):
                 if tgt:
                     incoming.add(str(tgt))
+        elif item["TableID"] == 4 and item.get("Ziel"):
+            incoming.add(str(item["Ziel"]))
 
     initial_eid = next((str(x["ElementID"]) for x in data
-                        if x["TableID"] == 1 and x.get("Initial")), None)
+                        if x["TableID"] in (1, 4) and x.get("Initial")), None)
 
     # NODES (CLICKABLE)
     for item in data:
@@ -156,8 +201,12 @@ def graph_svg():
             node_url = f"/edit_frage?id={fid}"
         elif t_id == 2:
             node_url = f"/edit_antwort?id={fid}"
-        else:
+        elif t_id == 3:
             node_url = f"/edit_prompt?id={fid}"
+        elif t_id == 4:
+            node_url = f"/edit_multiple_choice_frage?id={fid}"
+        else:
+            node_url = "/dashboard"
 
         attrs = {
             "shape": shape_map.get(t_id, "ellipse"),
@@ -169,7 +218,7 @@ def graph_svg():
 
         # precedence: thick borders first
         locked = False
-        if t_id == 1 and item.get("Initial"):
+        if t_id in (1, 4) and item.get("Initial"):
             attrs["color"] = BLUE
             attrs["penwidth"] = "3"
             locked = True
@@ -192,17 +241,22 @@ def graph_svg():
                 else:
                     attrs["color"] = YELLOW
                     attrs["penwidth"] = "1.5"
+            elif t_id == 4:     # Multiple-Choice-Fragen
+                if item.get("Ziel"):
+                    attrs["color"] = GREEN
+                    attrs["penwidth"] = "1.5"
 
         dot.node(nid, label=label, **attrs)
 
     # EDGES
     for item in data:
-        if item["TableID"] != 1:
-            continue
         src = str(item["ElementID"])
-        for edge_label, tgt in (("Ja", item["Ja"]), ("Nein", item["Nein"]), ("Unsicher", item["Unsicher"])):
-            if tgt:
-                dot.edge(src, str(tgt), label=edge_label)
+        if item["TableID"] == 1:
+            for edge_label, tgt in (("Ja", item["Ja"]), ("Nein", item["Nein"]), ("Unsicher", item["Unsicher"])):
+                if tgt:
+                    dot.edge(src, str(tgt), label=edge_label)
+        elif item["TableID"] == 4 and item.get("Ziel"):
+            dot.edge(src, str(item["Ziel"]), label="Weiter")
 
     svg = dot.pipe(format="svg")
     return Response(svg, mimetype="image/svg+xml", headers={"Cache-Control": "no-store"})
@@ -226,13 +280,17 @@ def graph_status():
                 SELECT Nein   FROM tbl_fragen WHERE Nein   IS NOT NULL
                 UNION
                 SELECT Unsicher FROM tbl_fragen WHERE Unsicher IS NOT NULL
+                UNION
+                SELECT Ziel FROM tbl_multiple_choice_fragen WHERE Ziel IS NOT NULL
             ),
             initial_elem(eid) AS (
-                SELECT e.ID
-                FROM tbl_elemente e
+                SELECT e.ID FROM tbl_elemente e
                 JOIN tbl_fragen f ON e.table_id = 1 AND e.foreign_id = f.ID
                 WHERE f.Initial = 1
-                LIMIT 1
+                UNION
+                SELECT e.ID FROM tbl_elemente e
+                JOIN tbl_multiple_choice_fragen m ON e.table_id = 4 AND e.foreign_id = m.ID
+                WHERE m.Initial = 1
             ),
             red_elems(id) AS (
                 SELECT e.ID
@@ -1084,6 +1142,228 @@ def save_contact_email_config():
         return jsonify({"message": f"Fehler: {str(e)}"}), 500
 
 # </editor-fold>
+
+def _optional_positive_int(value, field_name):
+    """Convert an optional JSON/form value to a positive integer."""
+    if value in (None, ""):
+        return None
+
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field_name} muss eine ganze Zahl sein.") from exc
+
+    if parsed < 1:
+        raise ValueError(f"{field_name} muss mindestens 1 sein.")
+    return parsed
+
+
+@app.route("/anlegen_multiple_choice_frage")
+def anlegen_multiple_choice_frage():
+    return render_template("_multiple_choice_frage_anlegen.html")
+
+
+@app.route("/anlegen_multiple_choice_item")
+def anlegen_multiple_choice_item():
+    return render_template("_multiple_choice_item_anlegen.html")
+
+
+@app.route("/all_multiple_choice_fragen")
+def all_multiple_choice_fragen():
+    return jsonify(db.get_all_multiple_choice_fragen())
+
+
+@app.route("/edit_multiple_choice_frage")
+def edit_multiple_choice_frage():
+    return render_template("_multiple_choice_frage_editieren.html")
+
+
+@app.route("/get_multiple_choice_frage/<int:frage_id>", methods=["GET"])
+def get_multiple_choice_frage(frage_id):
+    frage = db.get_multiple_choice_frage_by_id(frage_id)
+    if not frage:
+        return jsonify({"message": "Multiple-Choice-Frage nicht gefunden."}), 404
+    return jsonify(frage)
+
+
+@app.route("/loeschen_multiple_choice_frage")
+def loeschen_multiple_choice_frage():
+    return render_template("_multiple_choice_frage_loeschen.html")
+
+
+@app.route("/delete_multiple_choice_frage/<int:frage_id>", methods=["DELETE"])
+def delete_multiple_choice_frage(frage_id):
+    try:
+        if db.multiple_choice_frage_is_referenced(frage_id):
+            return jsonify({"message": "Die Multiple-Choice-Frage wird noch referenziert und kann nicht gelöscht werden."}), 400
+        if not db.delete_multiple_choice_frage(frage_id):
+            return jsonify({"message": "Multiple-Choice-Frage nicht gefunden."}), 404
+        return jsonify({"message": "Multiple-Choice-Frage erfolgreich gelöscht."})
+    except Exception:
+        app.logger.exception("Fehler beim Löschen der Multiple-Choice-Frage")
+        return jsonify({"message": "Die Multiple-Choice-Frage konnte nicht gelöscht werden."}), 500
+
+
+@app.route("/update_multiple_choice_frage", methods=["POST"])
+def update_multiple_choice_frage():
+    data = request.get_json(silent=True) or {}
+    try:
+        frage_id = _optional_positive_int(data.get("id"), "Frage-ID")
+        if frage_id is None:
+            raise ValueError("Bitte wählen Sie eine Multiple-Choice-Frage aus.")
+
+        initial_value = str(data.get("initial", "0")).strip().lower()
+        initial = initial_value in {"1", "true", "yes", "on"}
+        updated = db.update_multiple_choice_frage(
+            frage_id=frage_id,
+            bez=data.get("bez", ""),
+            text=data.get("text", ""),
+            bem=data.get("bem", ""),
+            ziel=_optional_positive_int(data.get("ziel"), "Nachfolger-ID"),
+            initial=initial
+        )
+        if not updated:
+            return jsonify({"message": "Multiple-Choice-Frage nicht gefunden."}), 404
+        return jsonify({"message": "Multiple-Choice-Frage erfolgreich aktualisiert."})
+    except ValueError as exc:
+        return jsonify({"message": str(exc)}), 400
+    except sqlite3.IntegrityError:
+        app.logger.exception("Fehler beim Aktualisieren der Multiple-Choice-Frage")
+        return jsonify({"message": "Die Bezeichnung wird bereits verwendet."}), 409
+    except Exception:
+        app.logger.exception("Fehler beim Aktualisieren der Multiple-Choice-Frage")
+        return jsonify({"message": "Die Multiple-Choice-Frage konnte nicht aktualisiert werden."}), 500
+
+
+@app.route("/mc_fragen_liste")
+def mc_fragen_liste():
+    return render_template("_mc_fragen_liste.html")
+
+
+@app.route("/all_multiple_choice_items")
+def all_multiple_choice_items():
+    items = []
+    for frage in db.get_all_multiple_choice_fragen():
+        for item in db.get_multiple_choice_items(frage["ID"]):
+            items.append({
+                **item,
+                "FrageBez": frage["Bez"],
+                "FrageText": frage["Text"]
+            })
+    return jsonify(items)
+
+
+@app.route("/edit_multiple_choice_item")
+def edit_multiple_choice_item():
+    return render_template("_multiple_choice_item_editieren.html")
+
+
+@app.route("/get_multiple_choice_item/<int:item_id>", methods=["GET"])
+def get_multiple_choice_item(item_id):
+    item = db.get_multiple_choice_item_by_id(item_id)
+    if not item:
+        return jsonify({"message": "Multiple-Choice-Item nicht gefunden."}), 404
+    return jsonify(item)
+
+
+@app.route("/update_multiple_choice_item", methods=["POST"])
+def update_multiple_choice_item():
+    data = request.get_json(silent=True) or {}
+    try:
+        item_id = _optional_positive_int(data.get("id"), "Item-ID")
+        position = _optional_positive_int(data.get("position"), "Position")
+        if item_id is None or position is None:
+            raise ValueError("Item-ID und Position sind erforderlich.")
+        if not db.update_multiple_choice_item(item_id, data.get("text", ""), position):
+            return jsonify({"message": "Multiple-Choice-Item nicht gefunden."}), 404
+        return jsonify({"message": "Multiple-Choice-Item erfolgreich aktualisiert."})
+    except ValueError as exc:
+        return jsonify({"message": str(exc)}), 400
+    except Exception:
+        app.logger.exception("Fehler beim Aktualisieren des Multiple-Choice-Items")
+        return jsonify({"message": "Das Multiple-Choice-Item konnte nicht aktualisiert werden."}), 500
+
+
+@app.route("/loeschen_multiple_choice_item")
+def loeschen_multiple_choice_item():
+    return render_template("_multiple_choice_item_loeschen.html")
+
+
+@app.route("/delete_multiple_choice_item/<int:item_id>", methods=["DELETE"])
+def delete_multiple_choice_item(item_id):
+    try:
+        if not db.delete_multiple_choice_item(item_id):
+            return jsonify({"message": "Multiple-Choice-Item nicht gefunden."}), 404
+        return jsonify({"message": "Multiple-Choice-Item erfolgreich gelöscht."})
+    except Exception:
+        app.logger.exception("Fehler beim Löschen des Multiple-Choice-Items")
+        return jsonify({"message": "Das Multiple-Choice-Item konnte nicht gelöscht werden."}), 500
+
+
+@app.route("/save_multiple_choice_frage", methods=["POST"])
+def save_multiple_choice_frage():
+    data = request.get_json(silent=True) or {}
+
+    try:
+        initial_value = str(data.get("initial", "0")).strip().lower()
+        initial = initial_value in {"1", "true", "yes", "on"}
+
+        frage_id = db.create_multiple_choice_frage(
+            bez=data.get("bez", ""),
+            text=data.get("text", ""),
+            bem=data.get("bem", ""),
+            ziel=_optional_positive_int(data.get("ziel"), "Nachfolger-ID"),
+            initial=initial
+        )
+        return jsonify({
+            "message": "Multiple-Choice-Frage wurde erfolgreich gespeichert.",
+            "ID": frage_id
+        }), 201
+    except ValueError as exc:
+        return jsonify({"message": str(exc)}), 400
+    except sqlite3.IntegrityError as exc:
+        app.logger.exception("Fehler beim Speichern der Multiple-Choice-Frage")
+        return jsonify({
+            "message": "Die Multiple-Choice-Frage verletzt eine Datenbankbedingung."
+        }), 409
+    except Exception:
+        app.logger.exception("Fehler beim Speichern der Multiple-Choice-Frage")
+        return jsonify({
+            "message": "Die Multiple-Choice-Frage konnte nicht gespeichert werden."
+        }), 500
+
+
+@app.route("/save_multiple_choice_item", methods=["POST"])
+def save_multiple_choice_item():
+    data = request.get_json(silent=True) or {}
+
+    try:
+        frage_id = _optional_positive_int(data.get("frage_id"), "Frage-ID")
+        if frage_id is None:
+            raise ValueError("Bitte wählen Sie eine Multiple-Choice-Frage aus.")
+
+        position = _optional_positive_int(data.get("position"), "Position")
+        item_id = db.create_multiple_choice_item(
+            frage_id=frage_id,
+            text=data.get("text", ""),
+            position=position
+        )
+        return jsonify({
+            "message": "Multiple-Choice-Item wurde erfolgreich gespeichert.",
+            "ID": item_id
+        }), 201
+    except ValueError as exc:
+        return jsonify({"message": str(exc)}), 400
+    except sqlite3.IntegrityError:
+        app.logger.exception("Fehler beim Speichern des Multiple-Choice-Items")
+        return jsonify({
+            "message": "Die gewählte Frage oder das Zielelement existiert nicht."
+        }), 409
+    except Exception:
+        app.logger.exception("Fehler beim Speichern des Multiple-Choice-Items")
+        return jsonify({
+            "message": "Das Multiple-Choice-Item konnte nicht gespeichert werden."
+        }), 500
 
 
 # ===========================================================================================================

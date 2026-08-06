@@ -8,6 +8,9 @@ DB_PATH = "database/database.db"
 def open_connection():
     try:
         connection = sqlite3.connect(DB_PATH)
+        # SQLite only enforces declared foreign keys when this pragma is enabled
+        # for every connection.
+        connection.execute("PRAGMA foreign_keys = ON")
         cursor = connection.cursor()
         return connection, cursor
     except Exception as e:
@@ -27,7 +30,7 @@ def init_db():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS tbl_elemente (
         ID INTEGER NOT NULL PRIMARY KEY , -- Primary Key
-        table_id INTEGER NOT NULL, -- 1=Frage, 2=Antwort, 3=Prompt
+        table_id INTEGER NOT NULL, -- 1=Frage, 2=Antwort, 3=Prompt, 4=Multiple-Choice-Frage
         foreign_id INTEGER NOT NULL
         )
     """)
@@ -62,6 +65,69 @@ def init_db():
         Frage TEXT, -- Referenz/Frage (String)
         DSGVO TEXT -- DSGVO-Artikel (Wortlaut)
         )
+    """)
+
+    # tbl_multiple_choice_fragen
+    # A multiple-choice question is a graph element in the same way as a
+    # regular Frage, Antwort or Prompt (tbl_elemente.table_id = 4).
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tbl_multiple_choice_fragen (
+        ID INTEGER NOT NULL PRIMARY KEY,
+        Bez TEXT NOT NULL,
+        Text TEXT NOT NULL,
+        Bem TEXT,
+        Ziel INTEGER,
+        Initial BOOLEAN NOT NULL DEFAULT 0 CHECK (Initial IN (0, 1))
+        )
+    """)
+
+    # Existing databases predate the single question-level successor.
+    cursor.execute("PRAGMA table_info(tbl_multiple_choice_fragen)")
+    if "Ziel" not in {row[1] for row in cursor.fetchall()}:
+        cursor.execute("ALTER TABLE tbl_multiple_choice_fragen ADD COLUMN Ziel INTEGER")
+
+    # tbl_multiple_choice_items
+    # Each item belongs to exactly one question. Position is 1-based and is
+    # unique inside that question. The legacy Ziel column is retained for
+    # backwards-compatible database migration, but successors now belong to
+    # tbl_multiple_choice_fragen.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tbl_multiple_choice_items (
+        ID INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        FrageID INTEGER NOT NULL,
+        Text TEXT NOT NULL,
+        Position INTEGER NOT NULL CHECK (Position >= 1),
+        Ziel INTEGER,
+        FOREIGN KEY (FrageID)
+            REFERENCES tbl_multiple_choice_fragen(ID) ON DELETE CASCADE,
+        FOREIGN KEY (Ziel)
+            REFERENCES tbl_elemente(ID) ON DELETE SET NULL,
+        UNIQUE (FrageID, Position)
+        )
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_multiple_choice_items_frage
+        ON tbl_multiple_choice_items (FrageID)
+    """)
+
+    # Preserve an existing item-level target when upgrading older databases.
+    cursor.execute("""
+        UPDATE tbl_multiple_choice_fragen
+        SET Ziel = (
+            SELECT i.Ziel
+            FROM tbl_multiple_choice_items i
+            WHERE i.FrageID = tbl_multiple_choice_fragen.ID
+              AND i.Ziel IS NOT NULL
+            ORDER BY i.Position ASC
+            LIMIT 1
+        )
+        WHERE Ziel IS NULL
+          AND EXISTS (
+            SELECT 1 FROM tbl_multiple_choice_items i
+            WHERE i.FrageID = tbl_multiple_choice_fragen.ID
+              AND i.Ziel IS NOT NULL
+          )
     """)
 
     # tbl_config (global configuration – single row expected)
@@ -216,6 +282,20 @@ def get_element_by_id(element_id: int):
                 "System": system_text,
             }
 
+    elif table_id == 4:  # Multiple-Choice-Frage
+        frage = get_multiple_choice_frage_by_id(foreign_id)
+        if frage:
+            return {
+                "type": "MultipleChoiceFrage",
+                "ID": element_id,
+                "FrageID": foreign_id,
+                "Bez": frage["Bez"],
+                "Text": frage["Text"],
+                "Bem": frage["Bem"],
+                "Initial": frage["Initial"],
+                "Items": frage["Items"],
+            }
+
     return None
 
 def get_all_bez_with_element_ids():
@@ -236,6 +316,11 @@ def get_all_bez_with_element_ids():
             FROM tbl_elemente e
             JOIN tbl_prompts p ON p.ID = e.foreign_id
             WHERE e.table_id = 3
+            UNION ALL
+            SELECT e.ID AS ElementID, 'MultipleChoiceFrage' AS type, m.Bez AS Bez
+            FROM tbl_elemente e
+            JOIN tbl_multiple_choice_fragen m ON m.ID = e.foreign_id
+            WHERE e.table_id = 4
         ) t
         ORDER BY t.Bez COLLATE NOCASE ASC
     """)
@@ -341,6 +426,7 @@ def create_frage(bez: str, text: str, bem: str, ja: int, nein: int, unsicher: in
 
         if initial:
             cursor.execute("UPDATE tbl_fragen SET Initial = 0 WHERE Initial = 1")
+            cursor.execute("UPDATE tbl_multiple_choice_fragen SET Initial = 0 WHERE Initial = 1")
 
         cursor.execute("INSERT INTO tbl_fragen (ID, Bez, Text, Bem, Ja, Nein, Unsicher, Initial) VALUES ("
                        "?, ?, ?, ?, ?, ?, ?, ?);", (element_id, bez, text, bem, ja, nein, unsicher, initial))
@@ -376,15 +462,26 @@ def get_frage_by_id(frage_id: int):
 
 def get_initial_frage():
     conn, cursor = open_connection()
-    cursor.execute("SELECT ID FROM tbl_fragen WHERE Initial = 1")
+    cursor.execute("""
+        SELECT ID, table_id
+        FROM (
+            SELECT ID, 1 AS table_id FROM tbl_fragen WHERE Initial = 1
+            UNION ALL
+            SELECT ID, 4 AS table_id FROM tbl_multiple_choice_fragen WHERE Initial = 1
+        )
+        LIMIT 1
+    """)
     row = cursor.fetchone()
     close_connection(conn)
     if not row:
         return None
 
-    frage_id = row[0]
+    frage_id, table_id = row
     conn, cursor = open_connection()
-    cursor.execute("SELECT ID FROM tbl_elemente WHERE table_id = 1 AND foreign_id = ?", (frage_id,))
+    cursor.execute(
+        "SELECT ID FROM tbl_elemente WHERE table_id = ? AND foreign_id = ?",
+        (table_id, frage_id)
+    )
     row = cursor.fetchone()
     close_connection(conn)
     if not row:
@@ -398,6 +495,7 @@ def update_frage(frage_id: int, bez: str, text: str, bem: str, ja: int, nein: in
 
     if initial:
         cursor.execute("UPDATE tbl_fragen SET Initial = 0 WHERE Initial = 1")
+        cursor.execute("UPDATE tbl_multiple_choice_fragen SET Initial = 0 WHERE Initial = 1")
 
     cursor.execute("""
         UPDATE tbl_fragen SET Bez = ?, Text = ?, Bem = ?, Ja = ?, Nein = ?, Unsicher = ?, Initial = ? WHERE ID = ?
@@ -436,15 +534,22 @@ def get_all_elements_with_edges():
               WHEN e.table_id = 1 THEN f.Bez
               WHEN e.table_id = 2 THEN a.Bez
               WHEN e.table_id = 3 THEN p.Bez
+              WHEN e.table_id = 4 THEN m.Bez
             END             AS Bez,
             f.Ja            AS Ja,
             f.Nein          AS Nein,
             f.Unsicher      AS Unsicher,
-            f.Initial       AS Initial
+            m.Ziel          AS MCZiel,
+            CASE
+              WHEN e.table_id = 1 THEN f.Initial
+              WHEN e.table_id = 4 THEN m.Initial
+            END             AS Initial
         FROM tbl_elemente e
         LEFT JOIN tbl_fragen    f ON e.table_id = 1 AND f.ID = e.foreign_id
         LEFT JOIN tbl_antworten a ON e.table_id = 2 AND a.ID = e.foreign_id
         LEFT JOIN tbl_prompts   p ON e.table_id = 3 AND p.ID = e.foreign_id
+        LEFT JOIN tbl_multiple_choice_fragen m
+            ON e.table_id = 4 AND m.ID = e.foreign_id
         ORDER BY Bez COLLATE NOCASE ASC
     """)
     rows = cursor.fetchall()
@@ -454,15 +559,424 @@ def get_all_elements_with_edges():
     for r in rows:
         results.append({
             "ElementID": r[0],
-            "TableID": r[1],          # 1=Frage, 2=Antwort, 3=Prompt
+            "TableID": r[1],          # 1=Frage, 2=Antwort, 3=Prompt, 4=Multiple-Choice-Frage
             "ForeignID": r[2],
             "Bez": r[3] or "",
             "Ja": r[4],
             "Nein": r[5],
             "Unsicher": r[6],
-            "Initial": r[7] if r[7] is not None else 0,  # 0/1 from SQLite
+            "Ziel": r[7],
+            "Initial": r[8] if r[8] is not None else 0,  # 0/1 from SQLite
         })
     return results
+
+# ===========================================================================================================
+
+# Multiple-choice questions and items
+
+def _normalise_required_text(value: str, field_name: str) -> str:
+    """Strip and validate text coming from an HTML form."""
+    value = (value or "").strip()
+    if not value:
+        raise ValueError(f"{field_name} darf nicht leer sein.")
+    return value
+
+
+def _set_initial_question(cursor, table_name: str, question_id: int = None):
+    """Keep Initial unique across regular and multiple-choice questions."""
+    cursor.execute("UPDATE tbl_fragen SET Initial = 0 WHERE Initial = 1")
+    cursor.execute("UPDATE tbl_multiple_choice_fragen SET Initial = 0 WHERE Initial = 1")
+    if question_id is not None:
+        cursor.execute(
+            f"UPDATE {table_name} SET Initial = 1 WHERE ID = ?",
+            (question_id,)
+        )
+
+
+def _apply_item_order(cursor, frage_id: int, ordered_item_ids):
+    """Write a complete, gap-free 1-based order without UNIQUE collisions."""
+    ordered_item_ids = [int(item_id) for item_id in ordered_item_ids]
+
+    cursor.execute(
+        "SELECT ID FROM tbl_multiple_choice_items WHERE FrageID = ?",
+        (frage_id,)
+    )
+    existing_ids = {row[0] for row in cursor.fetchall()}
+    if len(ordered_item_ids) != len(set(ordered_item_ids)):
+        raise ValueError("Die Reihenfolge enthält doppelte Item-IDs.")
+    if set(ordered_item_ids) != existing_ids:
+        raise ValueError("Die Reihenfolge muss alle Items der Frage genau einmal enthalten.")
+
+    # Move all positions outside their normal range first. This prevents the
+    # UNIQUE (FrageID, Position) constraint from firing during a swap.
+    cursor.execute("""
+        UPDATE tbl_multiple_choice_items
+        SET Position = Position + 1000000
+        WHERE FrageID = ?
+    """, (frage_id,))
+
+    for position, item_id in enumerate(ordered_item_ids, start=1):
+        cursor.execute("""
+            UPDATE tbl_multiple_choice_items
+            SET Position = ?
+            WHERE ID = ? AND FrageID = ?
+        """, (position, item_id, frage_id))
+
+
+def create_multiple_choice_frage(
+    bez: str,
+    text: str,
+    bem: str = "",
+    ziel: int = None,
+    initial: bool = False
+) -> int:
+    """Create a multiple-choice question and its graph element; return its ID."""
+    bez = _normalise_required_text(bez, "Bezeichnung")
+    text = _normalise_required_text(text, "Fragetext")
+    bem = (bem or "").strip()
+    ziel = int(ziel) if ziel not in (None, "") else None
+
+    conn, cursor = open_connection()
+    try:
+        if ziel is not None:
+            cursor.execute("SELECT 1 FROM tbl_elemente WHERE ID = ?", (ziel,))
+            if not cursor.fetchone():
+                raise ValueError("Das gewählte Nachfolgeelement existiert nicht.")
+
+        cursor.execute("SELECT COALESCE(MAX(ID), 0) + 1 FROM tbl_elemente")
+        frage_id = cursor.fetchone()[0]
+
+        if initial:
+            _set_initial_question(cursor, "tbl_multiple_choice_fragen")
+
+        cursor.execute("""
+            INSERT INTO tbl_multiple_choice_fragen (ID, Bez, Text, Bem, Ziel, Initial)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (frage_id, bez, text, bem, ziel, int(bool(initial))))
+        cursor.execute("""
+            INSERT INTO tbl_elemente (ID, table_id, foreign_id)
+            VALUES (?, 4, ?)
+        """, (frage_id, frage_id))
+        conn.commit()
+        return frage_id
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        close_connection(conn)
+
+
+def get_all_multiple_choice_fragen():
+    """Return questions for lists/dropdowns, including their number of items."""
+    conn, cursor = open_connection()
+    try:
+        cursor.execute("""
+            SELECT f.ID, f.Bez, f.Text, f.Bem, f.Ziel, f.Initial, COUNT(i.ID)
+            FROM tbl_multiple_choice_fragen f
+            LEFT JOIN tbl_multiple_choice_items i ON i.FrageID = f.ID
+            GROUP BY f.ID, f.Bez, f.Text, f.Bem, f.Ziel, f.Initial
+            ORDER BY f.Bez COLLATE NOCASE ASC
+        """)
+        return [
+            {
+                "ID": row[0], "Bez": row[1], "Text": row[2],
+                "Bem": row[3] or "", "Ziel": row[4],
+                "Initial": bool(row[5]), "ItemCount": row[6]
+            }
+            for row in cursor.fetchall()
+        ]
+    finally:
+        close_connection(conn)
+
+
+def get_multiple_choice_frage_by_id(frage_id: int, include_items: bool = True):
+    """Return one question; Items is ready to iterate over in a Jinja form."""
+    conn, cursor = open_connection()
+    try:
+        cursor.execute("""
+            SELECT ID, Bez, Text, Bem, Ziel, Initial
+            FROM tbl_multiple_choice_fragen
+            WHERE ID = ?
+        """, (frage_id,))
+        row = cursor.fetchone()
+        if not row:
+            return None
+
+        result = {
+            "ID": row[0], "Bez": row[1], "Text": row[2],
+            "Bem": row[3] or "", "Ziel": row[4], "Initial": bool(row[5])
+        }
+        if include_items:
+            cursor.execute("""
+                SELECT ID, FrageID, Text, Position, Ziel
+                FROM tbl_multiple_choice_items
+                WHERE FrageID = ?
+                ORDER BY Position ASC
+            """, (frage_id,))
+            result["Items"] = [
+                {
+                    "ID": item[0], "FrageID": item[1], "Text": item[2],
+                    "Position": item[3], "Ziel": item[4]
+                }
+                for item in cursor.fetchall()
+            ]
+        return result
+    finally:
+        close_connection(conn)
+
+
+def update_multiple_choice_frage(
+    frage_id: int,
+    bez: str,
+    text: str,
+    bem: str = "",
+    ziel: int = None,
+    initial: bool = False
+) -> bool:
+    """Update the question fields; item CRUD is intentionally separate."""
+    bez = _normalise_required_text(bez, "Bezeichnung")
+    text = _normalise_required_text(text, "Fragetext")
+    bem = (bem or "").strip()
+    ziel = int(ziel) if ziel not in (None, "") else None
+
+    conn, cursor = open_connection()
+    try:
+        cursor.execute(
+            "SELECT 1 FROM tbl_multiple_choice_fragen WHERE ID = ?",
+            (frage_id,)
+        )
+        if not cursor.fetchone():
+            return False
+
+        if ziel is not None:
+            cursor.execute("SELECT 1 FROM tbl_elemente WHERE ID = ?", (ziel,))
+            if not cursor.fetchone():
+                raise ValueError("Das gewählte Nachfolgeelement existiert nicht.")
+
+        if initial:
+            _set_initial_question(cursor, "tbl_multiple_choice_fragen")
+
+        cursor.execute("""
+            UPDATE tbl_multiple_choice_fragen
+            SET Bez = ?, Text = ?, Bem = ?, Ziel = ?, Initial = ?
+            WHERE ID = ?
+        """, (bez, text, bem, ziel, int(bool(initial)), frage_id))
+        conn.commit()
+        return True
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        close_connection(conn)
+
+
+def delete_multiple_choice_frage(frage_id: int) -> bool:
+    """Delete a question; its items are removed by ON DELETE CASCADE."""
+    conn, cursor = open_connection()
+    try:
+        cursor.execute(
+            "DELETE FROM tbl_multiple_choice_fragen WHERE ID = ?",
+            (frage_id,)
+        )
+        deleted = cursor.rowcount > 0
+        if deleted:
+            cursor.execute(
+                "DELETE FROM tbl_elemente WHERE table_id = 4 AND foreign_id = ?",
+                (frage_id,)
+            )
+        conn.commit()
+        return deleted
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        close_connection(conn)
+
+
+def create_multiple_choice_item(
+    frage_id: int,
+    text: str,
+    position: int = None,
+    ziel: int = None
+) -> int:
+    """Create an item, insert it at position, and return its stable item ID."""
+    text = _normalise_required_text(text, "Antwortmöglichkeit")
+    ziel = int(ziel) if ziel not in (None, "") else None
+
+    conn, cursor = open_connection()
+    try:
+        cursor.execute(
+            "SELECT 1 FROM tbl_multiple_choice_fragen WHERE ID = ?",
+            (frage_id,)
+        )
+        if not cursor.fetchone():
+            raise ValueError("Die Multiple-Choice-Frage existiert nicht.")
+
+        cursor.execute("""
+            SELECT ID FROM tbl_multiple_choice_items
+            WHERE FrageID = ? ORDER BY Position ASC
+        """, (frage_id,))
+        ordered_ids = [row[0] for row in cursor.fetchall()]
+        insert_at = len(ordered_ids) + 1 if position in (None, "") else int(position)
+        insert_at = max(1, min(insert_at, len(ordered_ids) + 1))
+
+        # Append first, then place the new stable ID at the requested position.
+        cursor.execute("""
+            INSERT INTO tbl_multiple_choice_items (FrageID, Text, Position, Ziel)
+            VALUES (?, ?, ?, ?)
+        """, (frage_id, text, len(ordered_ids) + 1, ziel))
+        item_id = cursor.lastrowid
+        ordered_ids.insert(insert_at - 1, item_id)
+        _apply_item_order(cursor, frage_id, ordered_ids)
+        conn.commit()
+        return item_id
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        close_connection(conn)
+
+
+def get_multiple_choice_item_by_id(item_id: int):
+    """Return one item for prefilling an edit/delete confirmation form."""
+    conn, cursor = open_connection()
+    try:
+        cursor.execute("""
+            SELECT ID, FrageID, Text, Position, Ziel
+            FROM tbl_multiple_choice_items
+            WHERE ID = ?
+        """, (item_id,))
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return {
+            "ID": row[0], "FrageID": row[1], "Text": row[2],
+            "Position": row[3], "Ziel": row[4]
+        }
+    finally:
+        close_connection(conn)
+
+
+def get_multiple_choice_items(frage_id: int):
+    """Return a question's items in display/form order."""
+    frage = get_multiple_choice_frage_by_id(frage_id, include_items=True)
+    return frage["Items"] if frage else []
+
+
+def update_multiple_choice_item(
+    item_id: int,
+    text: str,
+    position: int,
+    ziel: int = None
+) -> bool:
+    """Update item content/target and optionally move it within its question."""
+    text = _normalise_required_text(text, "Antwortmöglichkeit")
+    ziel = int(ziel) if ziel not in (None, "") else None
+
+    conn, cursor = open_connection()
+    try:
+        cursor.execute(
+            "SELECT FrageID FROM tbl_multiple_choice_items WHERE ID = ?",
+            (item_id,)
+        )
+        row = cursor.fetchone()
+        if not row:
+            return False
+        frage_id = row[0]
+
+        cursor.execute("""
+            SELECT ID FROM tbl_multiple_choice_items
+            WHERE FrageID = ? ORDER BY Position ASC
+        """, (frage_id,))
+        ordered_ids = [row[0] for row in cursor.fetchall()]
+        ordered_ids.remove(item_id)
+        move_to = max(1, min(int(position), len(ordered_ids) + 1))
+        ordered_ids.insert(move_to - 1, item_id)
+
+        cursor.execute("""
+            UPDATE tbl_multiple_choice_items
+            SET Text = ?, Ziel = ?
+            WHERE ID = ?
+        """, (text, ziel, item_id))
+        _apply_item_order(cursor, frage_id, ordered_ids)
+        conn.commit()
+        return True
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        close_connection(conn)
+
+
+def reorder_multiple_choice_items(frage_id: int, ordered_item_ids) -> None:
+    """Persist drag-and-drop order submitted by an HTML form or JSON request."""
+    conn, cursor = open_connection()
+    try:
+        _apply_item_order(cursor, frage_id, ordered_item_ids)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        close_connection(conn)
+
+
+def delete_multiple_choice_item(item_id: int) -> bool:
+    """Delete one item and close the resulting gap in item positions."""
+    conn, cursor = open_connection()
+    try:
+        cursor.execute(
+            "SELECT FrageID FROM tbl_multiple_choice_items WHERE ID = ?",
+            (item_id,)
+        )
+        row = cursor.fetchone()
+        if not row:
+            return False
+        frage_id = row[0]
+
+        cursor.execute(
+            "DELETE FROM tbl_multiple_choice_items WHERE ID = ?",
+            (item_id,)
+        )
+        cursor.execute("""
+            SELECT ID FROM tbl_multiple_choice_items
+            WHERE FrageID = ? ORDER BY Position ASC
+        """, (frage_id,))
+        _apply_item_order(cursor, frage_id, [row[0] for row in cursor.fetchall()])
+        conn.commit()
+        return True
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        close_connection(conn)
+
+
+def multiple_choice_frage_is_referenced(frage_id: int) -> bool:
+    """True when another graph element links to this MC question."""
+    conn, cursor = open_connection()
+    try:
+        cursor.execute("""
+            SELECT ID FROM tbl_elemente
+            WHERE table_id = 4 AND foreign_id = ?
+        """, (frage_id,))
+        row = cursor.fetchone()
+        if not row:
+            return False
+        element_id = row[0]
+
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT 1 FROM tbl_fragen
+                WHERE Ja = ? OR Nein = ? OR Unsicher = ?
+                UNION ALL
+                SELECT 1 FROM tbl_multiple_choice_fragen
+                WHERE Ziel = ? AND ID <> ?
+            )
+        """, (element_id, element_id, element_id, element_id, frage_id))
+        return bool(cursor.fetchone()[0])
+    finally:
+        close_connection(conn)
 
 # ===========================================================================================================
 
@@ -1177,11 +1691,40 @@ def admin_print_tbl_elemente():
     except Exception as e:
         print(e)
 
+def admin_print_tbl_multiple_choice_fragen():
+    try:
+        conn, cursor = open_connection()
+        cursor.execute("SELECT * FROM tbl_multiple_choice_fragen")
+        rows = cursor.fetchall()
+        close_connection(conn)
+        for row in rows:
+            print(row)
+        print("All multiple-choice questions displayed successfully.")
+    except Exception as e:
+        print(e)
+
+def admin_print_tbl_multiple_choice_items():
+    try:
+        conn, cursor = open_connection()
+        cursor.execute("""
+            SELECT * FROM tbl_multiple_choice_items
+            ORDER BY FrageID, Position
+        """)
+        rows = cursor.fetchall()
+        close_connection(conn)
+        for row in rows:
+            print(row)
+        print("All multiple-choice items displayed successfully.")
+    except Exception as e:
+        print(e)
+
 def admin_print_all_tables():
     admin_print_tbl_elemente()
     admin_print_tbl_fragen()
     admin_print_tbl_antworten()
     admin_print_tbl_prompts()
+    admin_print_tbl_multiple_choice_fragen()
+    admin_print_tbl_multiple_choice_items()
 
 # ===========================================================================================================
 
@@ -1192,16 +1735,12 @@ if __name__ == '__main__':
     # admin_nuke_database()
     # admin_clean_all()
     # admin_print_all_tables()
-    #
-    # insert_into_tbl_fragen("Frage1", "Frage1", "Frage1", 1, 2, 3, False)
-    # insert_into_tbl_antworten("Antwort1")
-    # insert_into_tbl_prompts("Prompt1")
-    #
+
     # admin_print_tbl_fragen()
     # admin_print_tbl_antworten()
     # admin_print_tbl_prompts()
     # admin_print_tbl_elemente()
-    #
+
     # admin_clean_fragen()
     # admin_clean_antworten()
     # admin_clean_prompts()
@@ -1217,5 +1756,4 @@ if __name__ == '__main__':
 
     # save_all_tables_to_json()
     # import_all_tables_from_json()
-
     # set_email_config("datenschutz-sandbox@lfdi.de", "Kontaktaufnahme: Datenschutz-Sandbox", "Hallo")

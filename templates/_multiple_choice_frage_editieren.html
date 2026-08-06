@@ -1,0 +1,161 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+  <div class="card shadow rounded-4 border-0">
+    <div class="card-body p-4">
+      <h2 class="mb-4 text-primary">
+        <i class="bi bi-pencil-square me-2"></i>Multiple-Choice-Frage bearbeiten
+      </h2>
+
+      <form id="multipleChoiceFrageForm" autocomplete="off">
+        <div class="mb-4">
+          <label for="ziel" class="form-label">Nächstes Element</label>
+          <select class="form-select rounded-3" id="ziel" name="ziel">
+            <option value="">-- kein nächstes Element --</option>
+          </select>
+          <div class="form-text">Wird angezeigt, sobald mindestens eine Antwortmöglichkeit ausgewählt wurde.</div>
+        </div>
+
+        <div class="mb-4">
+          <label for="frageSelect" class="form-label">Multiple-Choice-Frage auswählen</label>
+          <select id="frageSelect" class="form-select rounded-3 w-auto d-inline-block" required>
+            <option value="">-- Bitte wählen --</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label for="bez" class="form-label">Identifikator</label>
+          <input type="text" class="form-control rounded-3" id="bez" name="bez" required>
+        </div>
+
+        <div class="mb-3">
+          <label for="text" class="form-label">Fragetext</label>
+          <textarea class="form-control rounded-3" id="text" name="text" rows="3" required></textarea>
+        </div>
+
+        <div class="mb-3">
+          <label for="bem" class="form-label">Ergänzung/Hinweis/Bemerkung</label>
+          <textarea class="form-control rounded-3" id="bem" name="bem" rows="2"></textarea>
+        </div>
+
+        <div class="mb-4">
+          <label for="initial" class="form-label">Ist dies die Startfrage?</label>
+          <select class="form-select rounded-3 w-auto d-inline-block" id="initial" name="initial">
+            <option value="0">Nein</option>
+            <option value="1">Ja</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary px-4 rounded-3 shadow-sm">
+          <i class="bi bi-arrow-repeat me-1"></i>Aktualisieren
+        </button>
+        <a href="/graph" class="btn btn-primary px-4 rounded-3 shadow-sm ms-2">
+          <i class="bi bi-diagram-3 me-1"></i>Graph
+        </a>
+      </form>
+
+      <p id="statusMessage" class="mt-3 mb-0" role="status" aria-live="polite"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("multipleChoiceFrageForm");
+    const frageSelect = document.getElementById("frageSelect");
+    const statusMessage = document.getElementById("statusMessage");
+    let elementsLoaded = false;
+
+    function showStatus(message, successful) {
+      statusMessage.textContent = message;
+      statusMessage.className = successful
+        ? "mt-3 mb-0 text-success"
+        : "mt-3 mb-0 text-danger";
+    }
+
+    async function fillFragen() {
+      const response = await fetch("/all_multiple_choice_fragen");
+      if (!response.ok) throw new Error("Die Multiple-Choice-Fragen konnten nicht geladen werden.");
+      const fragen = await response.json();
+
+      frageSelect.innerHTML = '<option value="">-- Bitte wählen --</option>';
+      fragen.forEach(frage => {
+        const option = new Option(frage.Bez, frage.ID);
+        frageSelect.add(option);
+      });
+
+      const preselectedId = new URLSearchParams(window.location.search).get("id");
+      if (preselectedId) {
+        frageSelect.value = preselectedId;
+        if (frageSelect.value) await loadFrage(preselectedId);
+      }
+    }
+
+    async function fillElements() {
+      if (elementsLoaded) return;
+      const response = await fetch("/all_bez");
+      if (!response.ok) throw new Error("Die möglichen Nachfolger konnten nicht geladen werden.");
+      const elements = await response.json();
+      const zielSelect = document.getElementById("ziel");
+      zielSelect.innerHTML = '<option value="">-- kein nächstes Element --</option>';
+      elements.forEach(element => {
+        zielSelect.add(new Option(`${element.Bez} (${element.type})`, element.ID));
+      });
+      elementsLoaded = true;
+    }
+
+    async function loadFrage(id) {
+      const response = await fetch(`/get_multiple_choice_frage/${encodeURIComponent(id)}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Die Frage konnte nicht geladen werden.");
+
+      document.getElementById("bez").value = data.Bez || "";
+      document.getElementById("text").value = data.Text || "";
+      document.getElementById("bem").value = data.Bem || "";
+      document.getElementById("ziel").value = data.Ziel || "";
+      document.getElementById("initial").value = data.Initial ? "1" : "0";
+      statusMessage.textContent = "";
+    }
+
+    frageSelect.addEventListener("change", function () {
+      if (!this.value) return;
+      loadFrage(this.value).catch(error => showStatus(error.message, false));
+    });
+
+    form.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      if (!frageSelect.value) {
+        showStatus("Bitte zuerst eine Multiple-Choice-Frage auswählen.", false);
+        return;
+      }
+
+      const response = await fetch("/update_multiple_choice_frage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: Number(frageSelect.value),
+          bez: document.getElementById("bez").value.trim(),
+          text: document.getElementById("text").value.trim(),
+          bem: document.getElementById("bem").value.trim(),
+          ziel: document.getElementById("ziel").value || null,
+          initial: document.getElementById("initial").value
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        showStatus(data.message || "Die Frage konnte nicht aktualisiert werden.", false);
+        return;
+      }
+
+      const selectedId = frageSelect.value;
+      await fillFragen();
+      frageSelect.value = selectedId;
+      showStatus(data.message, true);
+    });
+
+    fillElements().then(fillFragen)
+      .catch(error => showStatus(error.message, false));
+  });
+</script>
+{% endblock %}

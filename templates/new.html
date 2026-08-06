@@ -59,6 +59,41 @@
         </div>`;
     }
 
+    else if (element.type === "MultipleChoiceFrage") {
+      const items = Array.isArray(element.Items) ? element.Items : [];
+      const itemHtml = items.length
+        ? items.map(item => `
+            <div class="form-check mb-2">
+              <input class="form-check-input multiple-choice-checkbox"
+                     type="checkbox"
+                     id="mc-item-${idx}-${escapeHtml(item.ID)}"
+                     value="${escapeHtml(item.ID)}"
+                     data-frage-id="${escapeHtml(element.FrageID)}">
+              <label class="form-check-label" for="mc-item-${idx}-${escapeHtml(item.ID)}">
+                ${escapeHtml(item.Text)}
+              </label>
+            </div>`).join("")
+        : '<p class="text-muted mb-0">Für diese Frage sind noch keine Antwortmöglichkeiten hinterlegt.</p>';
+
+      html = `
+        <div class="card shadow rounded-4 border-0 mb-4 multiple-choice-block" data-flow-index="${idx}">
+          <div class="card-body p-4">
+            <div class="d-flex align-items-center mb-2">
+              <i class="bi bi-ui-checks-grid text-primary me-2 fs-2"></i>
+              <h5 class="mb-0 text-primary">${escapeHtml(element.Bez)}</h5>
+            </div>
+
+            <p class="fs-5 mb-3">${escapeHtml(element.Text)}</p>
+            ${element.Bem ? `<p class="fst-italic text-muted mb-3">${escapeHtml(element.Bem)}</p>` : ""}
+
+            <fieldset>
+              <legend class="form-label fw-semibold fs-6">Ihre Auswahl</legend>
+              ${itemHtml}
+            </fieldset>
+          </div>
+        </div>`;
+    }
+
     else if (element.type === "Antwort") {
       html = `
         <div class="card shadow rounded-4 border-0 mb-4 antwort-block" data-flow-index="${idx}">
@@ -241,6 +276,22 @@
         });
       }
 
+      else if (block.classList.contains("multiple-choice-block")) {
+        const questionText = (block.querySelector("p.fs-5")?.innerText || "").trim();
+        const bem = (block.querySelector(".fst-italic")?.innerText || "").trim();
+        const selected = Array.from(block.querySelectorAll(".multiple-choice-checkbox:checked"))
+          .map(checkbox => (block.querySelector(`label[for='${checkbox.id}']`)?.innerText || "").trim());
+
+        items.push({
+          type: "Multiple-Choice-Frage",
+          number: index + 1,
+          title: title,
+          text: questionText,
+          bem: bem,
+          answer: selected.length ? selected.join(", ") : "---"
+        });
+      }
+
       else if (block.classList.contains("prompt-block")) {
         const promptLabel = (block.querySelector("label[for^='prompt-input']")?.innerText || "").trim();
         const userInput = (block.querySelector("input[type='text']")?.value || "").trim();
@@ -350,7 +401,7 @@
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
 
-      if (item.type === "Frage") {
+      if (item.type === "Frage" || item.type === "Multiple-Choice-Frage") {
         y = addWrappedText(doc, `Frage: ${item.text}`, marginLeft, y, usableWidth, lineHeight);
 
         if (item.bem) {
@@ -451,6 +502,61 @@
       error: function(xhr) {
         $('#frage-history').append('<div class="alert alert-danger">Fehler beim Laden des nächsten Elements.</div>');
         console.error("Fehler beim Laden des nächsten Elements:", xhr);
+      }
+    });
+  });
+
+  $('#frage-history').on('change', '.multiple-choice-checkbox', function() {
+    const parentDiv = $(this).closest('[data-flow-index]');
+    const idx = parseInt(parentDiv.attr('data-flow-index'), 10);
+    const frageId = $(this).data('frage-id');
+    const selectedItemIds = parentDiv.find('.multiple-choice-checkbox:checked')
+      .map(function() { return Number(this.value); })
+      .get();
+
+    $('[data-flow-index]').filter(function() {
+      return parseInt($(this).attr('data-flow-index'), 10) > idx;
+    }).remove();
+
+    if (!selectedItemIds.length) return;
+    flowIndex = idx + 1;
+
+    $.ajax({
+      url: '/next_multiple_choice_element',
+      type: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({
+        frage_id: frageId,
+        selected_item_ids: selectedItemIds
+      }),
+      success: function(data) {
+        if (data.done) {
+          $('#frage-history').append(`
+            <div class="card shadow rounded-4 border-0 mb-4" data-flow-index="${flowIndex}">
+              <div class="card-body p-4">
+                <div class="alert alert-success mb-3">
+                  <i class="bi bi-check-circle me-2"></i>${escapeHtml(data.message || "Fragebogen beendet.")}
+                </div>
+                <div class="d-flex justify-content-end gap-2 flex-wrap">
+                  <button class="btn btn-outline-secondary rounded-3 download-history-pdf-btn">
+                    <i class="bi bi-filetype-pdf me-1"></i>Verlauf als PDF herunterladen
+                  </button>
+                  <button class="btn btn-outline-primary rounded-3 contact-us-btn">
+                    <i class="bi bi-envelope me-1"></i>Contact us
+                  </button>
+                </div>
+              </div>
+            </div>`);
+        } else {
+          renderElement(data, flowIndex);
+          flowIndex += 1;
+        }
+      },
+      error: function(xhr) {
+        $('#frage-history').append(
+          '<div class="alert alert-danger">Fehler beim Laden des nächsten Elements.</div>'
+        );
+        console.error("Fehler beim Laden des Multiple-Choice-Nachfolgers:", xhr);
       }
     });
   });

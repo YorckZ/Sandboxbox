@@ -142,9 +142,17 @@
         .then(response => response.json())
         .then(list => {
             // Filtered lists
-            const allowedYesNo = list.filter(it => it.type === "Frage" || it.type === "Antwort");
+            const allowedYesNo = list.filter(it =>
+                it.type === "Frage" ||
+                it.type === "Antwort" ||
+                it.type === "MultipleChoiceFrage"
+            );
             // const allowedUnsicher = list.filter(it => it.type === "Prompt");
-            const allowedUnsicher = list.filter(it => it.type === "Frage" || it.type === "Prompt");
+            const allowedUnsicher = list.filter(it =>
+                it.type === "Frage" ||
+                it.type === "Prompt" ||
+                it.type === "MultipleChoiceFrage"
+            );
 
             // Populate selects
             const jaSel = document.getElementById("ja");
