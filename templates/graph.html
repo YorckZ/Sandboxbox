@@ -8,6 +8,9 @@
       <a href="/dashboard" class="btn btn-primary">
         <i class="bi bi-speedometer2 me-1"></i> Dashboard
       </a>
+      <button class="btn btn-outline-primary" id="save-graph" type="button">
+        <i class="bi bi-download me-1"></i> Als PNG speichern
+      </button>
       <button class="btn btn-outline-secondary" id="refresh-graph">
         <i class="bi bi-arrow-clockwise me-1"></i> Aktualisieren
       </button>
@@ -27,6 +30,65 @@
   document.getElementById('refresh-graph').addEventListener('click', () => {
     const obj = document.getElementById('graph-object');
     obj.data = '/graph.svg?ts=' + Date.now();
+  });
+
+  document.getElementById('save-graph').addEventListener('click', async () => {
+    const button = document.getElementById('save-graph');
+    const graphUrl = document.getElementById('graph-object').data;
+    const originalContent = button.innerHTML;
+
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> Wird gespeichert …';
+
+    try {
+      const response = await fetch(graphUrl);
+      if (!response.ok) throw new Error('Der Graph konnte nicht geladen werden.');
+
+      const svgText = await response.text();
+      const svgDocument = new DOMParser().parseFromString(svgText, 'image/svg+xml');
+      const svg = svgDocument.documentElement;
+      const viewBox = (svg.getAttribute('viewBox') || '').split(/\s+/).map(Number);
+      const width = viewBox.length === 4 ? viewBox[2] : parseFloat(svg.getAttribute('width'));
+      const height = viewBox.length === 4 ? viewBox[3] : parseFloat(svg.getAttribute('height'));
+
+      if (!width || !height) throw new Error('Die Größe des Graphen konnte nicht bestimmt werden.');
+
+      const maxDimension = 8192;
+      const scale = Math.min(2, maxDimension / width, maxDimension / height);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(width * scale));
+      canvas.height = Math.max(1, Math.round(height * scale));
+
+      const context = canvas.getContext('2d');
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+
+      const svgBlobUrl = URL.createObjectURL(new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' }));
+      const image = new Image();
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = () => reject(new Error('Der Graph konnte nicht in PNG umgewandelt werden.'));
+        image.src = svgBlobUrl;
+      });
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(svgBlobUrl);
+
+      const pngBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      if (!pngBlob) throw new Error('Die PNG-Datei konnte nicht erstellt werden.');
+
+      const downloadUrl = URL.createObjectURL(pngBlob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `graph-${new Date().toISOString().slice(0, 10)}.png`;
+      link.click();
+      URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error(error);
+      alert(error.message || 'Der Graph konnte nicht gespeichert werden.');
+    } finally {
+      button.disabled = false;
+      button.innerHTML = originalContent;
+    }
   });
 </script>
 {% endblock %}

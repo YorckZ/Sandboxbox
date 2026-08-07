@@ -7,65 +7,43 @@
     <div class="col-12 col-lg-6 dash-split d-flex flex-column align-items-stretch justify-content-center">
       <div class="w-100">
 
-        <!-- Übersicht Card -->
-        <div class="card shadow rounded-4 border-0 mb-4 dashboard-overview-card">
-          <div class="card-body">
-            <div class="d-grid gap-3">
-              <a href="/fragen_liste" class="btn btn-primary rounded-3 shadow-sm">
-                Alle Fragen
-              </a>
-              <a href="/mc_fragen_liste" class="btn btn-primary rounded-3 shadow-sm">
-                Alle MC Fragen
-              </a>
-              <a href="/antworten_liste" class="btn btn-primary rounded-3 shadow-sm">
-                Alle Antworten
-              </a>
-              <a href="/prompts_liste" class="btn btn-primary rounded-3 shadow-sm">
-                Alle Prompts
-              </a>
-            </div>
-          </div>
-        </div>
-
         <!-- Actions Card -->
         <div class="card shadow rounded-4 border-0">
           <div class="card-body">
-            <div class="dash-grid">
-
-              <!-- Fragen -->
-              <a href="/anlegen_frage"  class="btn btn-primary rounded-3 shadow-sm">Frage anlegen</a>
-              <a href="/edit_frage"     class="btn btn-primary rounded-3 shadow-sm">Frage editieren</a>
-              <a href="/loeschen_frage" class="btn btn-primary rounded-3 shadow-sm">Frage löschen</a>
-
-              <div class="grid-spacer"></div>
-
-              <!-- Multiple-Choice -->
-              <div class="dash-grid-two">
-                <div class="d-grid gap-3">
-                  <a href="/anlegen_multiple_choice_frage" class="btn btn-primary rounded-3 shadow-sm">Multiple-Choice-Frage anlegen</a>
-                  <a href="/edit_multiple_choice_frage" class="btn btn-primary rounded-3 shadow-sm">Multiple-Choice-Frage editieren</a>
-                  <a href="/loeschen_multiple_choice_frage" class="btn btn-primary rounded-3 shadow-sm">Multiple-Choice-Frage löschen</a>
-                </div>
-                <div class="d-grid gap-3">
-                  <a href="/anlegen_multiple_choice_item" class="btn btn-primary rounded-3 shadow-sm">Multiple-Choice-Item anlegen</a>
-                  <a href="/edit_multiple_choice_item" class="btn btn-primary rounded-3 shadow-sm">Multiple-Choice-Item editieren</a>
-                  <a href="/loeschen_multiple_choice_item" class="btn btn-primary rounded-3 shadow-sm">Multiple-Choice-Item löschen</a>
-                </div>
+            <div class="dashboard-action-groups">
+              <div class="dashboard-action-row">
+                <a href="/fragen_liste" class="btn btn-primary rounded-3 shadow-sm">Alle Fragen</a>
+                <a href="/anlegen_frage" class="btn btn-primary rounded-3 shadow-sm">Frage anlegen</a>
+                <a href="/edit_frage" class="btn btn-primary rounded-3 shadow-sm">Frage editieren</a>
+                <a href="/loeschen_frage" class="btn btn-primary rounded-3 shadow-sm">Frage löschen</a>
               </div>
 
-              <div class="grid-spacer"></div>
+              <div class="dashboard-action-row">
+                <a href="/antworten_liste" class="btn btn-primary rounded-3 shadow-sm">Alle Antworten</a>
+                <a href="/anlegen_antwort" class="btn btn-primary rounded-3 shadow-sm">Antwort anlegen</a>
+                <a href="/edit_antwort" class="btn btn-primary rounded-3 shadow-sm">Antwort editieren</a>
+                <a href="/loeschen_antwort" class="btn btn-primary rounded-3 shadow-sm">Antwort löschen</a>
+              </div>
 
-              <!-- Antworten -->
-              <a href="/anlegen_antwort"  class="btn btn-primary rounded-3 shadow-sm">Antwort anlegen</a>
-              <a href="/edit_antwort"     class="btn btn-primary rounded-3 shadow-sm">Antwort editieren</a>
-              <a href="/loeschen_antwort" class="btn btn-primary rounded-3 shadow-sm">Antwort löschen</a>
+              <div class="dashboard-action-row">
+                <a href="/mc_fragen_liste" class="btn btn-primary rounded-3 shadow-sm">Alle MC Fragen</a>
+                <a href="/anlegen_multiple_choice_frage" class="btn btn-primary rounded-3 shadow-sm">Multiple-Choice-Frage anlegen</a>
+                <a href="/edit_multiple_choice_frage" class="btn btn-primary rounded-3 shadow-sm">Multiple-Choice-Frage editieren</a>
+                <a href="/loeschen_multiple_choice_frage" class="btn btn-primary rounded-3 shadow-sm">Multiple-Choice-Frage löschen</a>
+              </div>
 
-              <div class="grid-spacer"></div>
+              <div class="dashboard-action-row dashboard-action-row-three">
+                <a href="/anlegen_multiple_choice_item" class="btn btn-primary rounded-3 shadow-sm">Multiple-Choice-Item anlegen</a>
+                <a href="/edit_multiple_choice_item" class="btn btn-primary rounded-3 shadow-sm">Multiple-Choice-Item editieren</a>
+                <a href="/loeschen_multiple_choice_item" class="btn btn-primary rounded-3 shadow-sm">Multiple-Choice-Item löschen</a>
+              </div>
 
-              <!-- Prompts -->
-              <a href="/anlegen_prompt"  class="btn btn-primary rounded-3 shadow-sm">Prompt anlegen</a>
-              <a href="/edit_prompt"     class="btn btn-primary rounded-3 shadow-sm">Prompt editieren</a>
-              <a href="/loeschen_prompt" class="btn btn-primary rounded-3 shadow-sm">Prompt löschen</a>
+              <div class="dashboard-action-row">
+                <a href="/prompts_liste" class="btn btn-primary rounded-3 shadow-sm">Alle Prompts</a>
+                <a href="/anlegen_prompt" class="btn btn-primary rounded-3 shadow-sm">Prompt anlegen</a>
+                <a href="/edit_prompt" class="btn btn-primary rounded-3 shadow-sm">Prompt editieren</a>
+                <a href="/loeschen_prompt" class="btn btn-primary rounded-3 shadow-sm">Prompt löschen</a>
+              </div>
             </div>
           </div>
         </div>

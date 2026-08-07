@@ -248,27 +248,23 @@ a:hover {
     min-height: 70vh;
 }
 
-.dash-grid {
+.dashboard-action-groups {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    column-gap: 16px;
-    row-gap: 0;
+    gap: 24px;
 }
 
-.dash-grid .btn {
-    width: 100%;
-}
-
-.dash-grid-two {
-    grid-column: 1 / -1;
+.dashboard-action-row {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 16px;
 }
 
-.grid-spacer {
-    grid-column: 1 / -1;
-    height: 48px;
+.dashboard-action-row-three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dashboard-action-row .btn {
+    width: 100%;
 }
 
 .stats-pre {
@@ -277,9 +273,9 @@ a:hover {
 }
 
 @media (max-width: 575.98px) {
-    .dash-grid,
-    .dash-grid-two {
+    .dashboard-action-row,
+    .dashboard-action-row-three {
         grid-template-columns: 1fr;
-        row-gap: 12px;
+        gap: 12px;
     }
 }
